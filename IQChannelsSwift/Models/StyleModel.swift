@@ -55,7 +55,6 @@ struct StyleModel: Decodable {
         let backgroundClient: Theme?
         let textOperator: TextStyle?
         let textClient: TextStyle?
-        let textSystem: TextStyle?
         let replyTextClient: TextStyle?
         let replySenderTextClient: TextStyle?
         let replyTextOperator: TextStyle?
@@ -76,7 +75,6 @@ struct StyleModel: Decodable {
             case backgroundClient = "background_client"
             case textOperator = "text_operator"
             case textClient = "text_client"
-            case textSystem = "text_system"
             case replyTextClient = "reply_text_client"
             case replySenderTextClient = "reply_sender_text_client"
             case replyTextOperator = "reply_text_operator"

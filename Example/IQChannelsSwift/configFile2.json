@@ -15,13 +15,22 @@
       "light": "#008080",
       "dark": "#008080"
     },
+    "chat_loader": {
+      "light": "#008080",
+      "dark": "#008080"
+    },
     "icon_operator": "https://gas-kvas.com/grafic/uploads/posts/2024-01/gas-kvas-com-p-logotip-cheloveka-na-prozrachnom-fone-4.png",
     "system_text": {
       "color": {
-        "light": "#000000",
-        "dark": "#FFFFFF"
+        "light": "#888888",
+        "dark": "#888888"
       },
-      "text_size": 10
+      "text_size": 10,
+      "text_align": "center",
+      "text_style": {
+        "bold": false,
+        "italic": true
+      }
     }
   },
   "messages": {
@@ -44,13 +53,6 @@
       "color": {
         "light": "#ffffff",
         "dark": "#FFFFFF"
-      },
-      "text_size": 10
-    },
-    "text_system": {
-      "color": {
-        "light": "#888888",
-        "dark": "#888888"
       },
       "text_size": 10
     },
@@ -90,6 +92,62 @@
       "text_size": 10
     },
     "text_up": {
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_rejected_operator": {
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_on_checking_operator": {
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_sent_for_checking_operator": {
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_check_error_operator": {
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_rejected_client": {
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_on_checking_client": {
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_sent_for_checking_client": {
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_check_error_client": {
       "color": {
         "light": "#000000",
         "dark": "#FFFFFF"

@@ -295,7 +295,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 <details>
   <summary>Пример JSON для передачи в SDK</summary>
 
-```js
+```json
 {
   "chat": {                   //Общий чат:
     "background": {           //Фон чата
@@ -313,13 +313,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       "light": "#008080",
       "dark": "#008080"
     },
-    "icon_operator": "https://gas-kvas.com/grafic/uploads/posts/2024-01/gas-kvas-com-p-logotip-cheloveka-na-prozrachnom-fone-4.png",    //Иконка оператора - файл
+    "chat_loader": {          //индикатор загрузки сообщений (основной лоадер)
+      "light": "#008080",
+      "dark": "#008080"
+    },
+    "icon_operator": "https://gas-kvas.com/grafic/uploads/posts/2024-01/gas-kvas-com-p-logotip-cheloveka-na-prozrachnom-fone-4.png", //Иконка оператора
     "system_text": {          //Системные сообщения
       "color": {
-        "light": "#000000",
-        "dark": "#FFFFFF"
+        "light": "#888888",
+        "dark": "#888888"
       },
-      "text_size": 10
+      "text_size": 10,
+      "text_align": "center", //Выравнивание текста
+      "text_style": {
+        "bold": false,        //Жирность
+        "italic": true        //Курсив
+      }
     }
   },
   "messages": {               //Сообщение отправка текста (стили применяются ко всем производным сообщениям):
@@ -342,13 +351,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       "color": {
         "light": "#ffffff",
         "dark": "#FFFFFF"
-      },
-      "text_size": 10
-    },
-    "text_system": {          //Текст сообщения (Система)
-      "color": {
-        "light": "#888888",
-        "dark": "#888888"
       },
       "text_size": 10
     },
@@ -393,6 +395,62 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         "dark": "#FFFFFF"
       },
       "text_size": 10
+    },
+    "text_file_state_rejected_operator": { // Текст файла от оператора при статусе rejected
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_on_checking_operator": { // Текст файла от оператора при статусе on_checking
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_sent_for_checking_operator": { // Текст файла от оператора при статусе sent_for_checking
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_check_error_operator": { // Текст файла от оператора при статусе check_error
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_rejected_client": { // Текст файла от клиента при статусе rejected
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_on_checking_client": { // Текст файла от клиента при статусе on_checking
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_sent_for_checking_client": { // Текст файла от клиента при статусе sent_for_checking
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
+    },
+    "text_file_state_check_error_client": { // Текст файла от клиента при статусе check_error
+      "color": {
+        "light": "#000000",
+        "dark": "#FFFFFF"
+      },
+      "text_size": 10
     }
   },
   "answer": {                 //Ответ на сообщения:
@@ -415,7 +473,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       "dark": "#808080"
     },
     "icon_cancel": "https://w7.pngwing.com/pngs/21/486/png-transparent-undo-common-toolbar-icon.png",     //Кнопка закрыть/отменить – вид кнопки(изменяется с помощью файла с иконкой)
-    "left_line": {                        //Прямая вертикальная линия рядом с сообщением, на которе отвечаем - цвет
+    "left_line": {                        //Прямая вертикальная линия рядом с сообщением, на которое отвечаем - цвет
       "light": "#FF0000",
       "dark": "#FF0000"
     }

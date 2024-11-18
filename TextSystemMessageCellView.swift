@@ -18,12 +18,12 @@ struct TextSystemMessageCellView: View {
     private let text: String
     
     var textColor: UIColor {
-        let textSystem = Style.getUIColor(theme: Style.model?.messages?.textSystem?.color) ?? UIColor(hex: "888888")
+        let textSystem = Style.getUIColor(theme: Style.model?.chat?.systemText?.color) ?? UIColor(hex: "888888")
         return textSystem
     }
     
     var fontSize: CGFloat {
-        let sizeSystem = CGFloat(Style.model?.messages?.textSystem?.textSize ?? 17)
+        let sizeSystem = CGFloat(Style.model?.chat?.systemText?.textSize ?? 17)
         return sizeSystem
     }
     
