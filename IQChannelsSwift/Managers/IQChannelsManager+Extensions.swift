@@ -672,7 +672,6 @@ extension IQChannelsManager {
             let results = (result.result?.0 ?? []).filter { $0.hasValidPayload }
             
             messages = results
-            
             if let lifeTime {
                 DispatchQueue.main.asyncAfter(deadline: .now() + DispatchTimeInterval.seconds(lifeTime)) {
                     if let index = self.messages.firstIndex(where: { $0.localID == -1 }) {
