@@ -30,9 +30,17 @@ struct ChatDetailView: View {
         return IQStyle.getColor(theme: IQStyle.model?.chat?.background) ?? .white
     }
     
+    var showInfoChatStub: Bool {
+        if(viewModel.isAnonim && viewModel.greetingSettings?.channelType == "info"){
+            return true
+        } else {
+            return (viewModel.client?.chatTypes.contains(.info) ?? false) && viewModel.messages.isEmpty
+        }
+    }
+
     // MARK: - BODY
     var body: some View {
-        if(viewModel.state == .authenticated || viewModel.state == .awaitingNetwork){
+        if((viewModel.state == .authenticated || viewModel.state == .awaitingNetwork) && !showInfoChatStub){
             ZStack(alignment: .top) {
                 VStack(spacing: 0) {
                     
@@ -49,21 +57,23 @@ struct ChatDetailView: View {
                         ChatMessagesView(delegate: delegate)
                     }
                     
-                    ChatInputView(text: $viewModel.inputText,
-                                  messageToReply: $viewModel.messageToReply,
-                                  selectedFiles: $viewModel.selectedFiles,
-                                  disableInput: viewModel.messages.first?.disableFreeText ?? false,
-                                  onAttachmentCompletion: {
-                        delegate?.onAttachmentTap()
-                    }, onSendCompletion: {
-                        delegate?.onSendMessage(viewModel.inputText)
-                        viewModel.inputText = ""
-                        viewModel.messageToReply = nil
-                        viewModel.selectedFiles = nil
-                    })
+                    if(!(viewModel.client?.chatTypes.contains(.info) ?? true)){
+                        ChatInputView(text: $viewModel.inputText,
+                                      messageToReply: $viewModel.messageToReply,
+                                      selectedFiles: $viewModel.selectedFiles,
+                                      disableInput: viewModel.messages.first?.disableFreeText ?? false,
+                                      onAttachmentCompletion: {
+                            delegate?.onAttachmentTap()
+                        }, onSendCompletion: {
+                            delegate?.onSendMessage(viewModel.inputText)
+                            viewModel.inputText = ""
+                            viewModel.messageToReply = nil
+                            viewModel.selectedFiles = nil
+                        })
+                    }
                 }
                 .zIndex(0)
-                
+        
                 Group {
                     if viewModel.isMessageCopied {
                         getMessageCopiedOverlay()
@@ -76,6 +86,12 @@ struct ChatDetailView: View {
             .animation(.easeInOut(duration: 0.25), value: viewModel.typingUser)
             .animation(.spring(response: 0.5, dampingFraction: 0.6, blendDuration: 0.3), value: viewModel.isMessageCopied)
             .overlay(getMessageControlOverlay())
+        }
+        else if (showInfoChatStub){
+            ZStack {
+                backgroundColor.ignoresSafeArea()
+                getInfoChatStubView()
+            }
         }
         else if (viewModel.state == .noPm){
             ZStack {
@@ -263,6 +279,46 @@ struct ChatDetailView: View {
                         .frame(maxWidth: .infinity, alignment: textAlignmentToAlignment(textAlignment: descriptionAlignment) ?? .center)
                 } else {
                     Text(textError)
+                        .foregroundColor(descriptionColor)
+                        .font(.system(size: descriptionFontSize))
+                        .multilineTextAlignment(descriptionAlignment)
+                        .frame(maxWidth: .infinity, alignment: textAlignmentToAlignment(textAlignment: descriptionAlignment) ?? .center)
+                }
+            }
+        }
+    }
+    
+    
+    
+    
+    
+    
+    @ViewBuilder
+    private func getInfoChatStubView() -> some View {
+        let descriptionColor = IQStyle.getColor(theme: IQStyle.model?.error?.textError?.color) ?? Color(hex: "242729")
+        let descriptionFontSize = CGFloat(IQStyle.model?.error?.textError?.textSize ?? 15)
+        let descriptionIsBold = IQStyle.model?.error?.textError?.textStyle?.bold ?? false
+        let descriptionIsItalic = IQStyle.model?.error?.textError?.textStyle?.italic ?? false
+        let descriptionAlignment = stringToAlignment(stringAlignment: IQStyle.model?.error?.textError?.textAlign) ?? .center
+ 
+        
+        VStack(spacing: 20) {
+            AnimatedImage(url: viewModel.infoChatSettings?.blockerIcon)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 48, height: 48)
+            
+            VStack(spacing: 8) {
+                if #available(iOS 16.0, *) {
+                    Text(viewModel.infoChatSettings?.blockerText ?? "")
+                        .foregroundColor(descriptionColor)
+                        .font(.system(size: descriptionFontSize))
+                        .bold(descriptionIsBold)
+                        .italic(descriptionIsItalic)
+                        .multilineTextAlignment(descriptionAlignment)
+                        .frame(maxWidth: .infinity, alignment: textAlignmentToAlignment(textAlignment: descriptionAlignment) ?? .center)
+                } else {
+                    Text(viewModel.infoChatSettings?.blockerText ?? "")
                         .foregroundColor(descriptionColor)
                         .font(.system(size: descriptionFontSize))
                         .multilineTextAlignment(descriptionAlignment)

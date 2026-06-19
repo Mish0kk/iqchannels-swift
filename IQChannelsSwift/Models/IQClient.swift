@@ -10,7 +10,7 @@ import Foundation
 struct IQClient: Equatable, Codable {
     var id: Int = 0
     var name: String?
-    var integrationId: String?
+    var integrationID: String?
     var personalManagerID: Int?
     var personalManagerGroupID: Int?
     var multiChatsInfo: IQMultiChatsInfo?
@@ -24,9 +24,10 @@ struct IQClient: Equatable, Codable {
     var chatTypes: [IQChatType] {
         guard let multiChatsInfo else { return [.chat] }
         
-//        if (multiChatsInfo.enableChat ?? false) && canAccessPersonalManager {
-//            return [.chat, .manager]
-//        }
-        return (canAccessPersonalManager) ? [.manager] : [.chat]
+        if(multiChatsInfo.channelType == "info"){
+            return [.info]
+        } else {
+            return (canAccessPersonalManager) ? [.manager] : [.chat]
+        }
     }
 }

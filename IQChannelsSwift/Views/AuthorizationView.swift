@@ -7,6 +7,7 @@ struct AuthorizationView: View {
     @Environment(\.colorScheme) var colorScheme
     
     let state: IQChannelsState
+    let infoChatSettings: IQInfoChatSettings?
     let onDismissChat: (() -> Void)?
     
     
@@ -15,20 +16,21 @@ struct AuthorizationView: View {
     // MARK: - BODY
     var body: some View {
         ZStack {
-//            Color.white.ignoresSafeArea()
             background.ignoresSafeArea()
             
             switch state {
-            case .loggedOut:
-                getErrorView(isPm: false)
-            case .noPm:
-                getErrorView(isPm: true)
-            case .awaitingNetwork:
-                getLoadingView()
-            case .authenticating:
-                getLoadingView()
-            case .authenticated:
-                EmptyView()
+                case .loggedOut:
+                    getErrorView(isPm: false)
+                case .noPm:
+                    getErrorView(isPm: true)
+                case .awaitingNetwork:
+                    getLoadingView()
+                case .authenticating:
+                    getLoadingView()
+                case .authenticated:
+                    EmptyView()
+                case .infoChatStub:
+                    getInfoChatStubView()
             }
         }
     }
@@ -153,6 +155,44 @@ struct AuthorizationView: View {
                             RoundedRectangle(cornerRadius: errorButtonRadius)
                                 .stroke(errorButtonBorderColor, lineWidth: errorButtonBorderSize)
                         )
+                }
+            }
+        }
+    }
+    
+    
+    
+    
+    @ViewBuilder
+    private func getInfoChatStubView() -> some View {
+        let descriptionColor = IQStyle.getColor(theme: IQStyle.model?.error?.textError?.color) ?? Color(hex: "242729")
+        let descriptionFontSize = CGFloat(IQStyle.model?.error?.textError?.textSize ?? 15)
+        let descriptionIsBold = IQStyle.model?.error?.textError?.textStyle?.bold ?? false
+        let descriptionIsItalic = IQStyle.model?.error?.textError?.textStyle?.italic ?? false
+        let descriptionAlignment = stringToAlignment(stringAlignment: IQStyle.model?.error?.textError?.textAlign) ?? .center
+ 
+        
+        VStack(spacing: 20) {
+            AnimatedImage(url: infoChatSettings?.blockerIcon)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 48, height: 48)
+            
+            VStack(spacing: 8) {
+                if #available(iOS 16.0, *) {
+                    Text(infoChatSettings?.blockerText ?? "")
+                        .foregroundColor(descriptionColor)
+                        .font(.system(size: descriptionFontSize))
+                        .bold(descriptionIsBold)
+                        .italic(descriptionIsItalic)
+                        .multilineTextAlignment(descriptionAlignment)
+                        .frame(maxWidth: .infinity, alignment: textAlignmentToAlignment(textAlignment: descriptionAlignment) ?? .center)
+                } else {
+                    Text(infoChatSettings?.blockerText ?? "")
+                        .foregroundColor(descriptionColor)
+                        .font(.system(size: descriptionFontSize))
+                        .multilineTextAlignment(descriptionAlignment)
+                        .frame(maxWidth: .infinity, alignment: textAlignmentToAlignment(textAlignment: descriptionAlignment) ?? .center)
                 }
             }
         }

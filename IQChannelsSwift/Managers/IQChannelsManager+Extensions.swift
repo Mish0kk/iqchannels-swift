@@ -67,6 +67,12 @@ extension IQChannelsManager {
             baseViewModels.setState(state)
         }.store(in: &subscriptions)
         
+        $infoChatSettings.receive(on: DispatchQueue.main).sink { [weak self] infoChatSettings in
+            guard let self else { return }
+            
+            baseViewModels.setState(infoChatSettings)
+        }.store(in: &subscriptions)
+        
         $messages.receive(on: DispatchQueue.main).sink { [weak self] messages in
             guard let self else { return }
             
@@ -79,6 +85,12 @@ extension IQChannelsManager {
             guard let self else { return }
             
             baseViewModels.setState(state)
+        }.store(in: &subscriptions)
+        
+        $infoChatSettings.receive(on: DispatchQueue.main).sink { [weak self] infoChatSettings in
+            guard let self else { return }
+            
+            baseViewModels.setState(infoChatSettings)
         }.store(in: &subscriptions)
         
         $messages.receive(on: DispatchQueue.main).sink { [weak self] messages in
@@ -468,7 +480,7 @@ extension IQChannelsManager {
                 self.detailViewModel?.enableAnimMessages = true
             }
             
-            let message = IQMessage(text: "2.3.3", localID: nextLocalId(), clientID: selectedChat.auth.auth.client?.id)
+            let message = IQMessage(text: "2.3.4-rc1", localID: nextLocalId(), clientID: selectedChat.auth.auth.client?.id)
             
             messages.append(message)
             DispatchQueue.main.async {
@@ -812,8 +824,11 @@ extension IQChannelsManager {
     private func loadMessagesAndMerge() async {
         guard let networkManager = currentNetworkManager, let selectedChat else { return }
         
+        let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
+        
         networkManager.stopListenToEvents()
-        let result = await networkManager.loadMessages(request: .init(chatType: selectedChat.chatType), getSettings: false).result
+
+        let result = await networkManager.loadMessages(request: .init(chatType: selectedChat.chatType), getSettings: false, isInfoChat: isInfoChat).result
         let newMessages = (result?.0 ?? [])
             .filter { $0.hasValidPayload }
             .filter { indexOfMessage(messageID: $0.messageID) == nil }
@@ -837,9 +852,12 @@ extension IQChannelsManager {
             messages = []
             networkManager.stopListenToEvents()
             
+            let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
+            
             DispatchQueue.main.async { self.detailViewModel?.isLoading = true }
             
-            let result = await networkManager.loadMessages(request: .init(clientId: selectedChat.auth.auth.client?.id, chatType: selectedChat.chatType), getSettings: true)
+
+            let result = await networkManager.loadMessages(request: .init(clientId: selectedChat.auth.auth.client?.id, chatType: selectedChat.chatType), getSettings: true, isInfoChat: isInfoChat)
             DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
             
             if let error = result.error {
@@ -861,6 +879,9 @@ extension IQChannelsManager {
                 if let availableLanguages = availableLanguages {
                     self.detailViewModel?.availableLanguages = availableLanguages
                 }
+                
+                self.detailViewModel?.isAnonim = self.isAnonim
+                self.detailViewModel?.greetingSettings = self.greetingSettings
             }
             
             if let lifeTime {
@@ -872,6 +893,11 @@ extension IQChannelsManager {
                         self.messages.remove(at: index)
                     }
                 }
+            }
+            
+            
+            DispatchQueue.main.async {
+                self.detailViewModel?.infoChatSettings = self.infoChatSettings
             }
             
             listenToEvents()
@@ -899,7 +925,10 @@ extension IQChannelsManager {
         Task {
             guard let networkManager = currentNetworkManager, let selectedChat else { return }
             
-            let result = await networkManager.loadMessages(request: .init(clientId: selectedChat.auth.auth.client?.id, chatType: selectedChat.chatType), getSettings: true)
+            let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
+            
+ 
+            let result = await networkManager.loadMessages(request: .init(clientId: selectedChat.auth.auth.client?.id, chatType: selectedChat.chatType), getSettings: true, isInfoChat: isInfoChat)
             DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
             
             if let error = result.error {
@@ -931,7 +960,9 @@ extension IQChannelsManager {
                 break
             }
             
-            let result = await networkManager.loadMessages(request: query, getSettings: false)
+            let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
+            
+            let result = await networkManager.loadMessages(request: query, getSettings: false, isInfoChat: isInfoChat)
             isLoadingOldMessages = false
             
             if let error = result.error {
@@ -1154,9 +1185,19 @@ extension IQChannelsManager {
                         } else {
                             response = await networkManager.clientsSignup()
                         }
+                    
+                        if let greetingSettingsResult = await networkManager.getSignupGreetingSettings().result{
+                            greetingSettings = greetingSettingsResult
+                        }
+                        if let infoChatSettingsResult = await networkManager.getBlocker().result{
+                            infoChatSettings = infoChatSettingsResult
+                        }
+                    
+                        isAnonim = true
                     case let .credentials(credential):
                         IQLog.debug(message: "Authentication credentials \n loginType: \(loginType)")
                         response = await networkManager.clientsIntegrationAuth(credentials: credential)
+                        isAnonim = false
                 }
                 errors.append(response.error)
                 results.append((channel, response.result))
@@ -1204,10 +1245,14 @@ extension IQChannelsManager {
     private func auth(_ type: IQLoginType, failedWith error: Error?, _ completion: (() -> Void)?) {
         authResults = []
         state = networkStatusManager.isReachable ? .loggedOut : .awaitingNetwork
-        if networkStatusManager.isReachable {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
-                let isAuthError = error?.iqIsAuthError ?? false
-                self?.auth(isAuthError ? .anonymous : type, completion)
+        if(greetingSettings?.channelType == "info" && isAnonim){
+            state = .infoChatStub
+        } else {
+            if networkStatusManager.isReachable {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
+                    let isAuthError = error?.iqIsAuthError ?? false
+                    self?.auth(isAuthError ? .anonymous : type, completion)
+                }
             }
         }
     }

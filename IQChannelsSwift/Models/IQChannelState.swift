@@ -13,6 +13,7 @@ enum IQChannelsState {
     case awaitingNetwork
     case authenticating
     case authenticated
+    case infoChatStub
     
     var description: String {
         switch self {
@@ -25,6 +26,8 @@ enum IQChannelsState {
         case .loggedOut:
             return ""
         case .noPm:
+            return ""
+        case .infoChatStub:
             return ""
         }
     }

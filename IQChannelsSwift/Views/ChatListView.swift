@@ -33,7 +33,7 @@ struct ChatListView: View {
                     }
                 }
             } else {
-                AuthorizationView(state: viewModel.state) {
+                AuthorizationView(state: viewModel.state, infoChatSettings: viewModel.infoChatSettings) {
                     output.listControllerDismissChat()
                 }
             }

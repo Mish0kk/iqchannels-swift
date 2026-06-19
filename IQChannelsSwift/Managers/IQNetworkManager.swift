@@ -195,6 +195,24 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
         return .init(result: value)
     }
     
+    func getSignupGreetingSettings() async -> ResponseCallback<IQGreetingSettings> {
+        let path = "/widget/greetings/\(channel)"
+        let response = await post(path, body: nil, responseType: IQGreetingSettings.self)
+        print("!!!!!!!!!!!!!   greetingSettings  response      \(response)")
+        
+        guard response.error == nil else {
+            IQLog.error(message: "getSignupGreetingSettings: \n error: \(String(describing: response.error))")
+            return .init(error: response.error)
+        }
+        guard let result = response.result, let value = result.value else { return .init(error: NSError.failedToParseModel(IQGreetingSettings.self)) }
+        
+        IQLog.debug(message: "getSignupGreetingSettings: \n success")
+        
+        print("!!!!!!!!!!!!!   greetingSettings  value      \(value)")
+        
+        return .init(result: value)
+    }
+    
     func getChatSettings(request: IQChatSettingsRequest) async -> ResponseCallback<IQChatSettings> {
         let path = "/chats/channel/chat/get_settings/\(channel)"
         let response = await post(path, body: request, responseType: IQChatSettings.self)
@@ -210,7 +228,7 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
         return .init(result: value)
     }
     
-    func loadMessages(request: IQLoadMessageRequest, getSettings: Bool) async -> ResponseCallback<([IQMessage], Bool, Int?, String, [IQLanguage]?)> {
+    func loadMessages(request: IQLoadMessageRequest, getSettings: Bool, isInfoChat: Bool) async -> ResponseCallback<([IQMessage], Bool, Int?, String, [IQLanguage]?)> {
         let path = "/chats/channel/messages/\(channel)"
         let response = await post(path, body: request, responseType: [IQMessage].self)
         
@@ -306,6 +324,27 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
         IQLog.debug(message: "rate: \n params: \(params) \n response: \(response)")
         
         return response.error
+    }
+    
+    func getBlocker() async -> ResponseCallback<IQInfoChatSettings> {
+        let path = "/chats/channel/blocker/\(channel)"
+        let response = await post(path, body: [], responseType: IQInfoChatSettingsResponse.self)
+        
+        guard response.error == nil else {
+            IQLog.error(message: "getBlocker: \n error: \(String(describing: response.error))")
+            return .init(error: response.error)
+        }
+        
+        guard let result = response.result, let value = result.value else { return .init(error: NSError.failedToParseModel(IQInfoChatSettingsResponse.self)) }
+        
+        IQLog.debug(message: "IQInfoChatSettingsResponse: \n success")
+        
+        let infoChatSettings = IQInfoChatSettings(
+            blockerText: value.text,
+            blockerIcon: relationManager.fileUrl(value.blockerFileID)
+        )
+        
+        return .init(result: infoChatSettings)
     }
     
     func sendPoll(request: IQSendPollRequest) async -> Error? {

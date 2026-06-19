@@ -22,6 +22,8 @@ class IQChannelsManager: IQChannelsManagerProtocol {
     @Published var detailViewModel: IQChatDetailViewModel?
     @Published var systemChat: Bool = false
     var config: IQChannelsConfig
+    @Published var infoChatSettings: IQInfoChatSettings? = nil
+    @Published var greetingSettings: IQGreetingSettings? = nil
     var listViewModel: IQChatListViewModel?
     var baseViewModels: [IQBaseViewModel] {
         [listViewModel, detailViewModel].compactMap { $0 }
@@ -32,6 +34,7 @@ class IQChannelsManager: IQChannelsManagerProtocol {
     var lastLocalID = 0
     var loginType: IQLoginType?
     var typingTimer: Timer?
+    var isAnonim = false
     var isLoadingOldMessages = false
     var typingSentDate: Date?
     var didSendAttachments = false

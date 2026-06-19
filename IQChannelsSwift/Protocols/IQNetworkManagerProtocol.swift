@@ -22,7 +22,8 @@ protocol IQNetworkManagerProtocol {
     func sendReadEvent(_ messageIDs: [Int]) async -> Error?
     func sendTypingEvent() async -> Error?
     func getFile(id: String) async throws -> IQFile?
-    func loadMessages(request: IQLoadMessageRequest, getSettings: Bool) async -> ResponseCallback<([IQMessage], Bool, Int?, String, [IQLanguage]?)>
+    func loadMessages(request: IQLoadMessageRequest, getSettings: Bool, isInfoChat: Bool) async -> ResponseCallback<([IQMessage], Bool, Int?, String, [IQLanguage]?)>
+    func getBlocker() async -> ResponseCallback<IQInfoChatSettings>
     func rate(value: Int, ratingID: Int) async -> Error?
     func sendPoll(request: IQSendPollRequest) async -> Error?
     func finishPoll(ratingId: Int, pollId: Int, rated: Bool) async -> Error?
@@ -33,6 +34,7 @@ protocol IQNetworkManagerProtocol {
     func clientsAuth(token: String) async -> ResponseCallback<IQClientAuth>
     func clientsSignup() async -> ResponseCallback<IQClientAuth>
     func clientsIntegrationAuth(credentials: String) async -> ResponseCallback<IQClientAuth>
+    func getSignupGreetingSettings() async -> ResponseCallback<IQGreetingSettings>
     func setLanguage(languageCode: String) async -> Error?
     func changeSegment(messageID: Int) async -> Error?
 }
