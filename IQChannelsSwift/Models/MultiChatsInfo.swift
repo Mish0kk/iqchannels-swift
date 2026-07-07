@@ -14,4 +14,5 @@ struct IQMultiChatsInfo: Equatable, Codable {
     var channelIconColor: String?
     var enableForPersonalManagers: Bool?
     var enableChat: Bool?
+    var channelType: String?
 }
