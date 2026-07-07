@@ -23,7 +23,7 @@ struct TextMessageCellView: View {
     
     private func loadText() {
         let result = AttributeTextManager.shared.getString(
-            from: message.messageText,
+            from: message.text ?? "",
             textColor: textColor,
             fontSize: fontSize,
             alingment: aligment,
