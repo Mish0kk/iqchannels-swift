@@ -32,35 +32,37 @@ struct StackedSingleChoicesView: View {
                     let lineWidth = CGFloat(IQStyle.model?.singleChoice?.borderButton?.size ?? 0)
                     let borderRadius = CGFloat(IQStyle.model?.singleChoice?.borderButton?.borderRadius ?? 4)
                     
-                    Button {
-                        onSingleChoiceTapCompletion?(singleChoice)
-                    } label: {
-                        if #available(iOS 16.0, *) {
-                            Text(singleChoice.title ?? "")
-                                .font(.system(size: fontSize))
-                                .foregroundColor(textColor)
-                                .frame(height: 32)
-                                .frame(maxWidth: .infinity, alignment: textAlignments[alignment] ?? Alignment.center)
-                                .background(backgroundColor)
-                                .cornerRadius(borderRadius)
-                                .bold(isBold)
-                                .italic(isItalic)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: borderRadius)
-                                        .stroke(borderColor, lineWidth: lineWidth)
-                                )
-                        } else {
-                            Text(singleChoice.title ?? "")
-                                .font(.system(size: fontSize))
-                                .foregroundColor(textColor)
-                                .frame(height: 32)
-                                .frame(maxWidth: .infinity, alignment: textAlignments[alignment] ?? Alignment.center)
-                                .background(backgroundColor)
-                                .cornerRadius(borderRadius)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: borderRadius)
-                                        .stroke(borderColor, lineWidth: lineWidth)
-                                )
+                    if(singleChoice.deleted != true){
+                        Button {
+                            onSingleChoiceTapCompletion?(singleChoice)
+                        } label: {
+                            if #available(iOS 16.0, *) {
+                                Text(singleChoice.title ?? "")
+                                    .font(.system(size: fontSize))
+                                    .foregroundColor(textColor)
+                                    .frame(height: 32)
+                                    .frame(maxWidth: .infinity, alignment: textAlignments[alignment] ?? Alignment.center)
+                                    .background(backgroundColor)
+                                    .cornerRadius(borderRadius)
+                                    .bold(isBold)
+                                    .italic(isItalic)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: borderRadius)
+                                            .stroke(borderColor, lineWidth: lineWidth)
+                                    )
+                            } else {
+                                Text(singleChoice.title ?? "")
+                                    .font(.system(size: fontSize))
+                                    .foregroundColor(textColor)
+                                    .frame(height: 32)
+                                    .frame(maxWidth: .infinity, alignment: textAlignments[alignment] ?? Alignment.center)
+                                    .background(backgroundColor)
+                                    .cornerRadius(borderRadius)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: borderRadius)
+                                            .stroke(borderColor, lineWidth: lineWidth)
+                                    )
+                            }
                         }
                     }
                 }
