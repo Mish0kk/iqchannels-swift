@@ -96,6 +96,15 @@ public class IQLibraryConfiguration: IQLibraryConfigurationProtocol {
         channelManager?.removeUnread(listener: listener)
     }
     
+    public func addAdvancedUnread(listener: any IQChannelsAdvancedUnreadListenerProtocol) {
+        channelManager?.getAdvancedUnread()
+        channelManager?.addAdvancedUnread(listener: listener)
+    }
+    
+    public func removeAdvancedUnread(listener: any IQChannelsAdvancedUnreadListenerProtocol) {
+        channelManager?.removeAdvancedUnread(listener: listener)
+    }
+    
     public func pushToken(_ token: Data?) {
         channelManager?.pushToken(token)
     }

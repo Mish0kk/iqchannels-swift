@@ -212,7 +212,33 @@ extension IQNetworkManager: URLSessionDelegate {
         guard let data, !data.isEmpty else { return .init(result: IQResult<T>()) }
         
         do {
-            let response = try IQJSONDecoder().decode(IQResponse<T>.self, from: data)
+//            let response = try IQJSONDecoder().decode(IQResponse<T>.self, from: data)
+            
+//            // !!!!!!!!!!! вывод сырого ответа
+//            if let rawString = String(data: data, encoding: .utf8) {
+//                print("Raw response: \(rawString)")
+//            }
+//            else {
+//                print("Raw response (non-UTF8): \(data)")
+//            }
+            
+            var responseData = data
+
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               json["OK"] == nil {
+
+                let wrapped: [String: Any] = [
+                    "OK": true,
+                    "Result": json,
+                    "Error": NSNull(),
+                    "Rels": [:]
+                ]
+
+                responseData = try JSONSerialization.data(withJSONObject: wrapped)
+            }
+
+            let response = try IQJSONDecoder().decode(IQResponse<T>.self, from: responseData)
+            
             if !response.ok {
                 return .init(error: NSError(response.error))
             }

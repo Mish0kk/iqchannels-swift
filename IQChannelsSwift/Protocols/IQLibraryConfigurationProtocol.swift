@@ -29,6 +29,10 @@ public protocol IQLibraryConfigurationProtocol {
     func addUnread(listener: IQChannelsUnreadListenerProtocol)
     /// Removes a listener from receiving unread message notifications.
     func removeUnread(listener: IQChannelsUnreadListenerProtocol)
+    /// Adds a listener to receive advanced unread message notifications.
+    func addAdvancedUnread(listener: IQChannelsAdvancedUnreadListenerProtocol)
+    /// Removes a listener from receiving advanced unread message notifications.
+    func removeAdvancedUnread(listener: IQChannelsAdvancedUnreadListenerProtocol)
     /// Pushes the device token for push notifications.
     func pushToken(_ token: Data?)
     /// Set theme

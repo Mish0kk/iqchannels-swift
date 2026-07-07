@@ -19,4 +19,7 @@ protocol IQChannelsManagerProtocol {
     func removeEventListener()
     func addUnread(listener: IQChannelsUnreadListenerProtocol)
     func removeUnread(listener: IQChannelsUnreadListenerProtocol)
+    func getAdvancedUnread()
+    func addAdvancedUnread(listener: IQChannelsAdvancedUnreadListenerProtocol)
+    func removeAdvancedUnread(listener: IQChannelsAdvancedUnreadListenerProtocol)
 }

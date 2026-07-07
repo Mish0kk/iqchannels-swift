@@ -199,6 +199,39 @@ extension IQChannelsManager {
         sendMessage("", files: files, replyToMessage: nil)
     }
     
+    private func listenToAdvancedUnread(){
+        guard !authResults.isEmpty, networkStatusManager.isReachable, let selectedChat else { return }
+        
+        currentNetworkManager?.listenToAdvancedUnread() { [weak self] events, error in
+            guard let self else { return }
+            
+            if error != nil {
+                DispatchQueue.main.async { [weak self] in
+                    self?.currentNetworkManager?.stopListenToAdvancedUnread()
+                    self?.listenToAdvancedUnread()
+                }
+            } else {
+                if(events != nil){
+                    Task {
+                        var unread = IQChannelsManager.advancedUnread
+                        
+                        if var unread = unread,
+                           let event = events,
+                           let index = unread.channels?.firstIndex(where: { $0.name == event.name }) {
+
+                            unread.channels?[index].lastMessage = event.lastMessage
+                            unread.channels?[index].unreadCount = event.unreadCount
+                            
+                            await MainActor.run {
+                                IQChannelsManager.advancedUnreadListeners.forEach { $0.iqChannelsAdvancedUnreadDidChange(unread) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     private func listenToEvents(){
         guard !authResults.isEmpty, networkStatusManager.isReachable, let selectedChat else { return }
         
@@ -267,6 +300,28 @@ extension IQChannelsManager {
                 let languageMap: [String: String] = ["code": language.code ?? "ru", "name": language.name ?? "Русский"]
                 UserDefaults.standard.set(languageMap, forKey: "selectedLanguage")
             }
+        }
+    }
+}
+
+//MARK: - Advanced Unread
+extension IQChannelsManager {
+    func getAdvancedUnread() {
+        Task {
+            guard let currentNetworkManager else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                    self?.getAdvancedUnread()
+                }
+                return
+            }
+            
+            let error = await currentNetworkManager.getAdvancedUnread(channels: config.channels)
+            if error != nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                    self?.getAdvancedUnread()
+                }
+            }
+            listenToAdvancedUnread()
         }
     }
 }

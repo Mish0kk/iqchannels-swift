@@ -41,6 +41,8 @@ class IQChannelsManager: IQChannelsManagerProtocol {
     var fileLimit: IQFileConfig?
     var eventListener: IQChannelsEventListenerProtocol?
     static var unreadListeners: [any IQChannelsUnreadListenerProtocol] = []
+    static var advancedUnreadListeners: [any IQChannelsAdvancedUnreadListenerProtocol] = []
+    static var advancedUnread: IQAdvancedUnread? = nil
     var subscriptions = Set<AnyCancellable>()
     
     //MARK: - Managers
@@ -123,6 +125,18 @@ class IQChannelsManager: IQChannelsManagerProtocol {
         Task {
             await MainActor.run {
                 IQChannelsManager.unreadListeners.removeAll(where: { $0.id == listener.id })
+            }
+        }
+    }
+    
+    func addAdvancedUnread(listener: IQChannelsAdvancedUnreadListenerProtocol) {
+        IQChannelsManager.advancedUnreadListeners.append(listener)
+    }
+    
+    func removeAdvancedUnread(listener: IQChannelsAdvancedUnreadListenerProtocol) {
+        Task {
+            await MainActor.run {
+                IQChannelsManager.advancedUnreadListeners.removeAll(where: { $0.id == listener.id })
             }
         }
     }

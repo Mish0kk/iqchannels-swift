@@ -19,7 +19,7 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
     
     let relationManager: IQRelationManager
     var eventsListener: IQEventSourceManager?
-//    var unreadListener: IQEventSourceManager?
+    var advancedUnreadListener: IQEventSourceManager?
     var unreadCount: Int?
     
     lazy var session = URLSession(configuration: .ephemeral, delegate: self, delegateQueue: nil)
@@ -83,6 +83,28 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
         }
     }
     
+    func listenToAdvancedUnread(callback: @escaping ResponseCallbackClosure<IQAdvancedUnreadResult>) {
+        var path = "/sse/chats/channel/unread/multichat"
+        
+        advancedUnreadListener = sse(path: path, responseType: IQAdvancedUnreadResult.self, onOpen: {}) { result, error in
+            if let error = error {
+                callback(nil, error)
+                IQLog.error(message: "listenToAdvancedUnread: \(error)")
+                return
+            }
+            guard let result else {
+                callback(nil, nil)
+                return
+            }
+            
+            var events = result.value
+            
+            IQLog.debug(message: "listenToAdvancedUnread: \(events)")
+            
+            callback(events, nil)
+        }
+    }
+    
 //    func listenToUnread(callback: @escaping ResponseCallbackClosure<Int>) {
 //        let path = "/sse/chats/channel/unread/\(channel)"
 //        
@@ -113,6 +135,11 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
     func stopListenToEvents(){
         eventsListener?.close()
         eventsListener = nil
+    }
+    
+    func stopListenToAdvancedUnread(){
+        advancedUnreadListener?.close()
+        advancedUnreadListener = nil
     }
     
 //    func stopListenToUnread(){
@@ -471,6 +498,33 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
         let response = await post(path, body: params, responseType: IQEmptyResponse.self)
         
         IQLog.debug(message: "setLanguage: \n languageCode: \(languageCode) \n response: \(response)")
+        
+        return response.error
+    }
+    
+    func getAdvancedUnread(channels: [String]) async -> Error? {
+        let path = "/clients/get_last_messages"
+        let params = ["ChannelNames": channels]
+        let response = await post(path, body: params, responseType: IQAdvancedUnread.self)
+        
+        if let result = response.result?.value{
+            IQChannelsManager.advancedUnread = result
+            Task {
+                await MainActor.run {
+                    IQChannelsManager.advancedUnreadListeners.forEach { $0.iqChannelsAdvancedUnreadDidChange(result) }
+                }
+            }
+        }
+        
+        if let error = response.error{
+            Task {
+                await MainActor.run {
+                    IQChannelsManager.advancedUnreadListeners.forEach { $0.iqChannelsAdvancedUnreadException(error) }
+                }
+            }
+        }
+        
+        IQLog.debug(message: "getAdvancedUnread: \n ChannelNames: \(channels) \n response: \(response)")
         
         return response.error
     }
