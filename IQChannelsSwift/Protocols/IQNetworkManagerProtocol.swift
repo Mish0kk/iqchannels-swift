@@ -39,4 +39,5 @@ protocol IQNetworkManagerProtocol {
     func getSignupGreetingSettings() async -> ResponseCallback<IQGreetingSettings>
     func setLanguage(languageCode: String) async -> Error?
     func changeSegment(messageID: Int) async -> Error?
+    func getAdvancedUnread(channels: [String]) async -> Error?
 }
