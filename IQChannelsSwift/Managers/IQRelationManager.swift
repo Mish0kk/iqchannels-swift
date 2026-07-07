@@ -73,7 +73,9 @@ class IQRelationManager {
         }
     }
     
-    func fileUrl(_ fileId: String) -> URL? {
+    func fileUrl(_ fileId: String?) -> URL? {
+        guard let fileId else { return nil }
+        
         var cleanedAddress = address.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanedAddress.hasPrefix("/") {
             cleanedAddress = String(cleanedAddress.dropFirst())
