@@ -143,8 +143,28 @@ extension IQChannelsManager {
             } else {
                 state = .authenticated
             }
-            
-            return [IQChatItemModel(channel: channel, info: client.multiChatsInfo, chatType: chatType)]
+            if client.canAccessPersonalManager {
+                return [
+                    IQChatItemModel(
+                        channel: channel,
+                        info: client.multiChatsInfo,
+                        chatType: .chat
+                    ),
+                    IQChatItemModel(
+                        channel: channel,
+                        info: client.multiChatsInfo,
+                        chatType: .manager
+                    )
+                ]
+            } else {
+                return [
+                    IQChatItemModel(
+                        channel: channel,
+                        info: client.multiChatsInfo,
+                        chatType: chatType
+                    )
+                ]
+            }
         }.flatMap {$0}
     }
     
@@ -484,6 +504,7 @@ extension IQChannelsManager {
         
         if let index = messages.firstIndex(where: { $0.messageID == choice.chatMessageID }) {
             messages[index].singleChoices = nil
+//            IQDatabaseManager.shared.insertMessage(messages[index].toDatabaseMessage())
         }
         
         let message = IQMessage(choice: choice, chatType: selectedChat.chatType, clientID: selectedChat.auth.auth.client?.id, localID: nextLocalId())
@@ -1149,14 +1170,16 @@ extension IQChannelsManager {
         
         for unsentMessage in unsentMessagesFromLocalDatabase {
             if(selectedChat?.auth.auth.client?.id == unsentMessage.clientID){
-                DispatchQueue.main.async {
-                    self.detailViewModel?.enableAnimMessages = true
-                }
-                messages.append(IQMessage(from: unsentMessage))
-                if(unsentMessage.file != nil){
-                    await uploadFileMessage(IQMessage(from: unsentMessage))
-                } else {
-                    await sendMessage(IQMessage(from: unsentMessage))
+                if !messages.contains(where: { $0.localID == unsentMessage.localID }) {
+                    DispatchQueue.main.async {
+                        self.detailViewModel?.enableAnimMessages = true
+                    }
+                    messages.append(IQMessage(from: unsentMessage))
+                    if(unsentMessage.file != nil){
+                        await uploadFileMessage(IQMessage(from: unsentMessage))
+                    } else {
+                        await sendMessage(IQMessage(from: unsentMessage))
+                    }
                 }
             }
         }
@@ -1329,9 +1352,14 @@ extension IQChannelsManager: IQNetworkStatusManagerDelegate {
             if !authResults.isEmpty {
                 state = .authenticated
                 await loadMessagesAndMerge()
+//                loadMessages()
 //                listenToUnread()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
                     self?.uploadUnsentMessages()
+//                    Task {
+//                        print("!!!!!!!!!!!!!!! sendUnsendMessages")
+//                        await self?.sendUnsendMessages()
+//                    }
                 }
             } else if let loginType, state != .authenticating {
                 authAttempt = 0

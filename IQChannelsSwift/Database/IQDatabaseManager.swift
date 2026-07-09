@@ -131,6 +131,41 @@ class IQDatabaseManager {
         }
     }
     
+    private func parseMessage(_ message: Row) -> IQDatabaseMessage {
+        return IQDatabaseMessage(
+            uid: message[uid],
+            messageID: message[messageID],
+            localID: message[localID],
+            fileID: message[fileID],
+            chatID: message[chatID],
+            createdAt: message[createdAt],
+            userID: message[userID],
+            clientID: message[clientID],
+            ratingID: message[ratingID],
+            payload: message[payload],
+            text: message[text],
+            author: message[author],
+            isRead: message[isRead],
+            replyToMessageID: message[replyToMessageID],
+            botpressPayload: message[botpressPayload],
+            isDropDown: message[isDropDown],
+            disableFreeText: message[disableFreeText],
+            isSystem: message[isSystem],
+            actions: message[actions],
+            singleChoices: message[singleChoices],
+            chatType: message[chatType],
+            eventID: message[eventID],
+            client: message[client],
+            user: message[user],
+            file: message[file],
+            rating: message[rating],
+            upload: message[upload],
+            error: message[error],
+            transferToChannel: message[transferToChannel]
+        )
+    }
+    
+    
     func insertMessage(_ message: IQDatabaseMessage) {
         if(message.localID != 0){
             do {
@@ -175,42 +210,28 @@ class IQDatabaseManager {
         var messagesArray: [IQDatabaseMessage] = []
         do {
             for message in try db.prepare(messages) {
-                messagesArray.append(IQDatabaseMessage(
-                    uid: message[uid],
-                    messageID: message[messageID],
-                    localID: message[localID],
-                    fileID: message[fileID],
-                    chatID: message[chatID],
-                    createdAt: message[createdAt],
-                    userID: message[userID],
-                    clientID: message[clientID],
-                    ratingID: message[ratingID],
-                    payload: message[payload],
-                    text: message[text],
-                    author: message[author],
-                    isRead: message[isRead],
-                    replyToMessageID: message[replyToMessageID],
-                    botpressPayload: message[botpressPayload],
-                    isDropDown: message[isDropDown],
-                    disableFreeText: message[disableFreeText],
-                    isSystem: message[isSystem],
-                    actions: message[actions],
-                    singleChoices: message[singleChoices],
-                    chatType: message[chatType],
-                    eventID: message[eventID],
-                    client: message[client],
-                    user: message[user],
-                    file: message[file],
-                    rating: message[rating],
-                    upload: message[upload],
-                    error: message[error],
-                    transferToChannel: message[transferToChannel]
-                ))
+                messagesArray.append(parseMessage(message))
             }
         } catch {
             IQLog.error(message: "Error retrieving all messages: \(error)")
         }
         return messagesArray
+    }
+    
+    func getMessageById(_ messageIdValue: Int) -> IQDatabaseMessage? {
+        do {
+           let query = messages.filter(messageID == messageIdValue)
+
+           if let row = try db.pluck(query) {
+               let message = parseMessage(row)
+               IQLog.debug(message: "getMessageById \(messageIdValue)")
+               return message
+           }
+       } catch {
+           IQLog.error(message: "Error getting message by id: \(error)")
+       }
+
+       return nil
     }
 
     func deleteMessageByLocalId(_ localIdValue: Int) -> Bool {
