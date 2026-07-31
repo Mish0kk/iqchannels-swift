@@ -18,7 +18,7 @@ CocoaPods
 IQChannelsSwift доступен через [CocoaPods](https://cocoapods.org). Чтобы установить его, добавьте следующую строку в ваш Podfile:
 
 ```ruby
-pod 'IQChannelsSwift', :git => 'https://github.com/iqstore/iqchannels-swift.git', :tag => '2.3.5'
+pod 'IQChannelsSwift', :git => 'https://github.com/iqstore/iqchannels-swift.git', :tag => '2.3.6'
 ```
 
 Затем выполните команду:
@@ -521,10 +521,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       }
     }
   },
-  "app_bar": {                 //Верхняя панель (Только iOS)
+  "app_bar": {                 //Верхняя панель
     "background": {           //Фон панели
       "light": "#FFFFFF",
       "dark": "#FFFFE0"
+    },
+    "back_button": {          // Цвет иконки "Назад"
+      "light": "#000000",
+      "dark": "#ffffff"
     },
     "status_label": {         //Текст статуса 
       "color": {

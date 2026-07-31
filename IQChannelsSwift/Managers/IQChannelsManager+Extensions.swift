@@ -556,7 +556,7 @@ extension IQChannelsManager {
                 self.detailViewModel?.enableAnimMessages = true
             }
             
-            let message = IQMessage(text: "2.3.5", localID: nextLocalId(), clientID: selectedChat.auth.auth.client?.id)
+            let message = IQMessage(text: "2.3.6", localID: nextLocalId(), clientID: selectedChat.auth.auth.client?.id)
             
             messages.append(message)
             DispatchQueue.main.async {
@@ -1219,7 +1219,7 @@ extension IQChannelsManager {
             }
             
             if let authResult = authResults.first(where: { $0.channel == message.transferToChannel?.name && $0.auth.client?.canAccessPersonalManager == false }) {
-                self.selectedChat = (authResult, IQChatType.chat)
+                self.selectedChat = (authResult, IQChatType.manager)
             }
         }
     }
