@@ -8,12 +8,23 @@
 import Foundation
 
 extension IQNetworkManager: URLSessionDelegate {
-    
-    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        guard let serverTrust = challenge.protectionSpace.serverTrust else {
-            return completionHandler(URLSession.AuthChallengeDisposition.useCredential, nil)
+    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping
+    (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        guard challenge.protectionSpace.authenticationMethod
+                == NSURLAuthenticationMethodServerTrust else {
+            completionHandler(.performDefaultHandling, nil)
+            return
         }
-        return completionHandler(URLSession.AuthChallengeDisposition.useCredential, URLCredential(trust: serverTrust))
+
+        guard let serverTrust = challenge.protectionSpace.serverTrust else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+            return
+        }
+
+        completionHandler(
+            .useCredential,
+            URLCredential(trust: serverTrust)
+        )
     }
     
     func sse<T: Decodable>(path: String, responseType: T.Type, onOpen: @escaping (() -> Void), callback: @escaping ResponseCallbackClosure<IQResult<T>>) -> IQEventSourceManager {
