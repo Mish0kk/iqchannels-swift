@@ -8,23 +8,30 @@
 import Foundation
 
 extension IQNetworkManager: URLSessionDelegate {
-    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping
-    (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        guard challenge.protectionSpace.authenticationMethod
-                == NSURLAuthenticationMethodServerTrust else {
+    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge,
+                    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+              let serverTrust = challenge.protectionSpace.serverTrust else {
             completionHandler(.performDefaultHandling, nil)
             return
         }
 
-        guard let serverTrust = challenge.protectionSpace.serverTrust else {
-            completionHandler(.cancelAuthenticationChallenge, nil)
+        guard let certificatePath = Bundle.main.path(forResource: "RussianTrustedRootCA", ofType: "cer"),
+              let certificateData = try? Data(contentsOf: URL(fileURLWithPath: certificatePath)),
+              let customCertificate = SecCertificateCreateWithData(nil, certificateData as CFData) else {
+            completionHandler(.performDefaultHandling, nil)
             return
         }
 
-        completionHandler(
-            .useCredential,
-            URLCredential(trust: serverTrust)
-        )
+        SecTrustSetAnchorCertificates(serverTrust, [customCertificate] as CFArray)
+        SecTrustSetAnchorCertificatesOnly(serverTrust, false)
+
+        var error: CFError?
+        if SecTrustEvaluateWithError(serverTrust, &error) {
+            completionHandler(.useCredential, URLCredential(trust: serverTrust))
+        } else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+        }
     }
     
     func sse<T: Decodable>(path: String, responseType: T.Type, onOpen: @escaping (() -> Void), callback: @escaping ResponseCallbackClosure<IQResult<T>>) -> IQEventSourceManager {

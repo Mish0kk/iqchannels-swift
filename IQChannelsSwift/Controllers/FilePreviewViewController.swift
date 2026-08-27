@@ -110,54 +110,48 @@ class FilePreviewController: UIViewController, WKNavigationDelegate, URLSessionD
 
     }
     
-    func webView(
-        _ webView: WKWebView,
-        didReceive challenge: URLAuthenticationChallenge,
-        completionHandler: @escaping (
-            URLSession.AuthChallengeDisposition,
-            URLCredential?
-        ) -> Void
-    ) {
-        guard challenge.protectionSpace.authenticationMethod
-                == NSURLAuthenticationMethodServerTrust else {
-            completionHandler(.performDefaultHandling, nil)
-            return
+    private func evaluateServerTrust(_ serverTrust: SecTrust) -> Bool {
+        guard let certificateURL = Bundle.main.url(forResource: "RussianTrustedRootCA", withExtension: "cer"),
+              let certificateData = try? Data(contentsOf: certificateURL),
+              let customCertificate = SecCertificateCreateWithData(nil, certificateData as CFData) else {
+            return false
         }
 
-        guard let serverTrust = challenge.protectionSpace.serverTrust else {
-            completionHandler(.cancelAuthenticationChallenge, nil)
-            return
-        }
+        SecTrustSetAnchorCertificates(serverTrust, [customCertificate] as CFArray)
+        SecTrustSetAnchorCertificatesOnly(serverTrust, false)
 
-        completionHandler(
-            .useCredential,
-            URLCredential(trust: serverTrust)
-        )
+        var error: CFError?
+        return SecTrustEvaluateWithError(serverTrust, &error)
     }
 
-    func urlSession(
-        _ session: URLSession,
-        didReceive challenge: URLAuthenticationChallenge,
-        completionHandler: @escaping (
-            URLSession.AuthChallengeDisposition,
-            URLCredential?
-        ) -> Void
-    ) {
-        guard challenge.protectionSpace.authenticationMethod
-                == NSURLAuthenticationMethodServerTrust else {
+    func webView(_ webView: WKWebView, didReceive challenge: URLAuthenticationChallenge,
+                 completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+              let serverTrust = challenge.protectionSpace.serverTrust else {
             completionHandler(.performDefaultHandling, nil)
             return
         }
 
-        guard let serverTrust = challenge.protectionSpace.serverTrust else {
+        if evaluateServerTrust(serverTrust) {
+            completionHandler(.useCredential, URLCredential(trust: serverTrust))
+        } else {
             completionHandler(.cancelAuthenticationChallenge, nil)
+        }
+    }
+
+    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge,
+                    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+              let serverTrust = challenge.protectionSpace.serverTrust else {
+            completionHandler(.performDefaultHandling, nil)
             return
         }
 
-        completionHandler(
-            .useCredential,
-            URLCredential(trust: serverTrust)
-        )
+        if evaluateServerTrust(serverTrust) {
+            completionHandler(.useCredential, URLCredential(trust: serverTrust))
+        } else {
+            completionHandler(.cancelAuthenticationChallenge, nil)
+        }
     }
     
     @objc private func dismissButtonTapped() {
