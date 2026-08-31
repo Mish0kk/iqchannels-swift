@@ -503,7 +503,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = IQChannelsSwift;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = "2.3.8-rc1";
+				MARKETING_VERSION = 2.3.8;
 				MODULE_NAME = ExampleApp;
 				PRODUCT_BUNDLE_IDENTIFIER = isimplelab.iqchannels.swift;
 				PRODUCT_NAME = "$(TARGET_NAME)";

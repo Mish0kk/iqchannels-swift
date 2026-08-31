@@ -2,36 +2,61 @@ import UIKit
 import SwiftUI
 
 final class AttributeTextManager {
-    
     static let shared: AttributeTextManager = .init()
     
     private init() {}
-    
-    func getString(from markdown: String, textColor: UIColor, fontSize: CGFloat, alingment: TextAlignment, isBold: Bool, isItalic: Bool) -> (NSAttributedString, [Link]) {
-        var formattedMarkdown = markdown.replacingOccurrences(of: "\\n", with: "\n")
-        
-        
+
+    func getString(
+        from markdown: String,
+        textColor: UIColor,
+        fontSize: CGFloat,
+        alingment: TextAlignment,
+        isBold: Bool,
+        isItalic: Bool
+    ) -> (NSAttributedString, [Link]) {
+
+        var formattedMarkdown = markdown.replacingOccurrences(of: "\\\n", with: "\n")
+
+        // MARK: - Base font
+
         var symbolicTraits: UIFontDescriptor.SymbolicTraits = []
+
         if isBold {
             symbolicTraits.insert(.traitBold)
         }
+
         if isItalic {
             symbolicTraits.insert(.traitItalic)
         }
+
         var font = UIFont.systemFont(ofSize: fontSize)
 
         if let descriptor = font.fontDescriptor.withSymbolicTraits(symbolicTraits) {
             font = UIFont(descriptor: descriptor, size: fontSize)
         }
+
+        // MARK: - Alignment
+
         let textAlignments: [TextAlignment: NSTextAlignment] = [
             .leading: .left,
             .center: .center,
             .trailing: .right
         ]
+
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = textAlignments[alingment] ?? .left
-        
-//        let attributedString = NSMutableAttributedString(string: formattedMarkdown)
+
+        // MARK: - Link attributes
+
+        let linkAttributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: textColor,
+            .underlineColor: textColor,
+            .underlineStyle: NSUnderlineStyle.single.rawValue
+        ]
+
+        // MARK: - Create attributed string
+
         let attributedString: NSMutableAttributedString
 
         if let data = formattedMarkdown.data(using: .utf8),
@@ -43,25 +68,42 @@ final class AttributeTextManager {
                 ],
                 documentAttributes: nil
            ) {
+
             attributedString = htmlString
+
         } else {
             attributedString = NSMutableAttributedString(string: formattedMarkdown)
         }
-        
-        
+
         var linkRanges: [Link] = []
-        attributedString.addAttributes([
-//            .font: font,
-            .foregroundColor: textColor,
-            .paragraphStyle: paragraphStyle
-        ], range: NSRange(location: 0, length: attributedString.length))
-        
-        attributedString.enumerateAttribute(.font,
-                                            in: NSRange(location: 0, length: attributedString.length)) { value, range, _ in
 
-            let currentFont = value as? UIFont ?? UIFont.systemFont(ofSize: fontSize)
+        // MARK: - Base attributes
 
-            var traits = currentFont.fontDescriptor.symbolicTraits
+        attributedString.addAttributes(
+            [
+                .foregroundColor: textColor,
+                .paragraphStyle: paragraphStyle
+            ],
+            range: NSRange(
+                location: 0,
+                length: attributedString.length
+            )
+        )
+
+        // MARK: - Process fonts
+
+        attributedString.enumerateAttribute(
+            .font,
+            in: NSRange(
+                location: 0,
+                length: attributedString.length
+            )
+        ) { value, range, _ in
+
+            let currentFont = value as? UIFont
+                ?? UIFont.systemFont(ofSize: fontSize)
+
+            let traits = currentFont.fontDescriptor.symbolicTraits
 
             let descriptor = UIFont.systemFont(ofSize: fontSize)
                 .fontDescriptor
@@ -71,107 +113,332 @@ final class AttributeTextManager {
                 UIFont(descriptor: $0, size: fontSize)
             } ?? UIFont.systemFont(ofSize: fontSize)
 
-            attributedString.addAttribute(.font, value: newFont, range: range)
+            attributedString.addAttribute(
+                .font,
+                value: newFont,
+                range: range
+            )
         }
-        
-        // Define patterns for markdown
+
+        // MARK: - Extract HTML links
+
+        attributedString.enumerateAttribute(
+            .link,
+            in: NSRange(
+                location: 0,
+                length: attributedString.length
+            )
+        ) { value, range, _ in
+
+            let urlString: String?
+
+            if let url = value as? URL {
+                urlString = url.absoluteString
+            } else if let string = value as? String {
+                urlString = string
+            } else {
+                urlString = nil
+            }
+
+            guard let urlString else {
+                return
+            }
+
+            linkRanges.append(
+                (urlString, range)
+            )
+
+            attributedString.addAttributes(
+                linkAttributes,
+                range: range
+            )
+        }
+
+        // MARK: - Markdown patterns
+
         let patterns: [(String, [NSAttributedString.Key: Any])] = [
-            ("\\\\\\*(.*?)\\\\\\*", [.font: UIFont.systemFont(ofSize: fontSize, weight: .bold)]),
-            ("\\\\\\_(.*?)\\\\\\_", [.font: UIFont.italicSystemFont(ofSize: fontSize)]),
-            ("`(.*?)`", [.font: UIFont(name: "Courier", size: UIFont.systemFontSize)!]),
-            ("\\[([^\\]]+)\\]\\(([^\\)]+)\\)", [:])
+
+            // Bold
+            (
+                "\\\\\\* (.*?) \\\\\\*"
+                    .replacingOccurrences(of: " ", with: ""),
+                [
+                    .font: UIFont.systemFont(
+                        ofSize: fontSize,
+                        weight: .bold
+                    )
+                ]
+            ),
+
+            // Italic
+            (
+                "\\\\_(.*?)\\\\_",
+                [
+                    .font: UIFont.italicSystemFont(
+                        ofSize: fontSize
+                    )
+                ]
+            ),
+
+            // Code
+            (
+                "`(.*?)`",
+                [
+                    .font: UIFont(
+                        name: "Courier",
+                        size: UIFont.systemFontSize
+                    ) ?? UIFont.systemFont(ofSize: fontSize)
+                ]
+            ),
+
+            // Markdown link
+            (
+                "\\[([^\\]]+)\\]\\(([^\\)]+)\\)",
+                [:]
+            )
         ]
-        
-        let linkAttributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(ofSize: fontSize),
-            .foregroundColor: textColor,
-            .underlineColor: textColor,
-            .underlineStyle: NSUnderlineStyle.single.rawValue
-        ]
-        
-        // Function to apply attributes to matches
-        func applyAttributes(to matches: [NSTextCheckingResult], in text: NSMutableAttributedString, attributes: [NSAttributedString.Key: Any], pattern: String) {
+
+        // MARK: - Apply Markdown attributes
+
+        func applyAttributes(
+            to matches: [NSTextCheckingResult],
+            in text: NSMutableAttributedString,
+            attributes: [NSAttributedString.Key: Any],
+            pattern: String
+        ) {
+
             for match in matches.reversed() {
+
+                // Markdown link
                 if pattern == "\\[([^\\]]+)\\]\\(([^\\)]+)\\)" {
+
                     if match.numberOfRanges == 3 {
+
                         let linkTextRange = match.range(at: 1)
                         let linkURLRange = match.range(at: 2)
-                        if let _ = text.attributedSubstring(from: linkTextRange).string.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-                           let linkURL = text.attributedSubstring(from: linkURLRange).string.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
-                            let urlString = linkURL.hasPrefix("http") ? linkURL : "http://\(linkURL)"
-                            linkRanges.append((urlString, linkTextRange))
-                            text.setAttributes(linkAttributes, range: linkTextRange)
-                            text.replaceCharacters(in: NSRange(location: match.range.location, length: match.range.length), with: text.attributedSubstring(from: linkTextRange))
+
+                        let linkText = text
+                            .attributedSubstring(from: linkTextRange)
+                            .string
+
+                        let linkURL = text
+                            .attributedSubstring(from: linkURLRange)
+                            .string
+
+                        guard !linkText.isEmpty,
+                              !linkURL.isEmpty else {
+                            continue
                         }
 
+                        let encodedURL = linkURL
+                            .addingPercentEncoding(
+                                withAllowedCharacters: .urlQueryAllowed
+                            ) ?? linkURL
+
+                        let urlString = encodedURL.hasPrefix("http")
+                            ? encodedURL
+                            : "http://\(encodedURL)"
+
+                        linkRanges.append(
+                            (urlString, linkTextRange)
+                        )
+
+                        text.setAttributes(
+                            linkAttributes,
+                            range: linkTextRange
+                        )
+
+                        let replacementText = text
+                            .attributedSubstring(
+                                from: linkTextRange
+                            )
+
+                        text.replaceCharacters(
+                            in: match.range,
+                            with: replacementText
+                        )
                     }
+
                 } else {
-                    text.addAttributes(attributes, range: match.range(at: 1))
+                    // Bold / italic / code
+                    text.addAttributes(
+                        attributes,
+                        range: match.range(at: 1)
+                    )
+
                     let fullRange = match.range
-                    let replacementText = text.attributedSubstring(from: match.range(at: 1))
-                    text.replaceCharacters(in: fullRange, with: replacementText)
+
+                    let replacementText = text
+                        .attributedSubstring(
+                            from: match.range(at: 1)
+                        )
+
+                    text.replaceCharacters(
+                        in: fullRange,
+                        with: replacementText
+                    )
                 }
             }
         }
-        
+
+        // MARK: - Lists
+
         func formatStringWithList(_ input: String) -> String {
-            let lines = input.components(separatedBy: "\n")
+
+            let lines = input.components(
+                separatedBy: "\n"
+            )
+
             var formattedLines = [String]()
 
             for line in lines {
-                let trimmedLine = line.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                let trimmedLine = line
+                    .trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    )
+
                 if trimmedLine.hasPrefix("*") {
-                    let text = trimmedLine.dropFirst().trimmingCharacters(in: .whitespacesAndNewlines)
-                    formattedLines.append("• \(text)")
+
+                    let text = trimmedLine
+                        .dropFirst()
+                        .trimmingCharacters(
+                            in: .whitespacesAndNewlines
+                        )
+
+                    formattedLines.append(
+                        "• \(text)"
+                    )
+
                 } else if trimmedLine.first?.isNumber ?? false {
-                    formattedLines.append(trimmedLine)
+
+                    formattedLines.append(
+                        trimmedLine
+                    )
                 }
             }
 
-            return formattedLines.joined(separator: "\n")
+            return formattedLines.joined(
+                separator: "\n"
+            )
         }
-        
+
+        // MARK: - Check list
+
         func isList(_ input: String) -> Bool {
             let pattern = "(\\\n\\*|\\\n\\d+\\.)"
-            
-            let regex = try? NSRegularExpression(pattern: pattern, options: [])
-            
-            return (regex?.firstMatch(in: input, options: [], range: NSRange(location: 0, length: input.utf16.count))) != nil
+
+            let regex = try? NSRegularExpression(
+                pattern: pattern,
+                options: []
+            )
+
+            return (
+                regex?.firstMatch(
+                    in: input,
+                    options: [],
+                    range: NSRange(
+                        location: 0,
+                        length: input.utf16.count
+                    )
+                ) != nil
+            )
         }
-        
+
+        // MARK: - Apply patterns
+
         for (pattern, attributes) in patterns {
+
             do {
-                let regex = try NSRegularExpression(pattern: pattern, options: [])
-                let matches = regex.matches(in: attributedString.string, options: [], range: NSRange(location: 0, length: attributedString.length))
-                applyAttributes(to: matches, in: attributedString, attributes: attributes, pattern: pattern)
+
+                let regex = try NSRegularExpression(
+                    pattern: pattern,
+                    options: []
+                )
+
+                let matches = regex.matches(
+                    in: attributedString.string,
+                    options: [],
+                    range: NSRange(
+                        location: 0,
+                        length: attributedString.length
+                    )
+                )
+
+                applyAttributes(
+                    to: matches,
+                    in: attributedString,
+                    attributes: attributes,
+                    pattern: pattern
+                )
+
             } catch {
-                print("Invalid regex pattern: \(pattern)")
+
+                print(
+                    "Invalid regex pattern: \(pattern)"
+                )
             }
         }
-        
-        // Handle generic links
+
+        // MARK: - Generic links
+
         let linkPatterns = [
-//            "^(https?:\\/\\/|www\\.)[A-Za-z0-9.-]+\\.[A-Za-z]{2,}(\\:[0-9]{1,5})?(\\/.*)?$"
             #"https?:\/\/[^\s/$.?#].[^\s]*"#
         ]
-        
-        for pattern in linkPatterns {
-            do {
-                let regex = try NSRegularExpression(pattern: pattern, options: [])
-                let matches = regex.matches(in: attributedString.string, options: [], range: NSRange(location: 0, length: (attributedString.string as NSString).length))
-                for match in matches.reversed() {
-                    let linkRange = match.range(at: 0)
-                    let linkText = attributedString.attributedSubstring(from: linkRange).string
-                    let urlString = linkText.hasPrefix("http") ? linkText : "http://\(linkText)"
-                    linkRanges.append((urlString, linkRange))
-                    attributedString.setAttributes(linkAttributes, range: linkRange)
 
+        for pattern in linkPatterns {
+
+            do {
+
+                let regex = try NSRegularExpression(
+                    pattern: pattern,
+                    options: []
+                )
+
+                let matches = regex.matches(
+                    in: attributedString.string,
+                    options: [],
+                    range: NSRange(
+                        location: 0,
+                        length: (attributedString.string as NSString).length
+                    )
+                )
+
+                for match in matches.reversed() {
+
+                    let linkRange = match.range(at: 0)
+
+                    let linkText = attributedString
+                        .attributedSubstring(
+                            from: linkRange
+                        )
+                        .string
+
+                    let urlString = linkText.hasPrefix("http")
+                        ? linkText
+                        : "http://\(linkText)"
+
+                    linkRanges.append(
+                        (urlString, linkRange)
+                    )
+
+                    attributedString.setAttributes(
+                        linkAttributes,
+                        range: linkRange
+                    )
                 }
+
             } catch {
-                print("Invalid regex pattern: \(pattern)")
+
+                print(
+                    "Invalid regex pattern: \(pattern)"
+                )
             }
         }
-        
-        return (attributedString, linkRanges)
+
+        return (
+            attributedString,
+            linkRanges
+        )
     }
 }
