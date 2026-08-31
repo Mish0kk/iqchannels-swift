@@ -978,7 +978,6 @@ extension IQChannelsManager {
             
             listenToEvents()
             
-            await sendUnsendMessages()
             sendPreFillMessages()
             
             DispatchQueue.main.async { [weak self] in
@@ -1047,6 +1046,8 @@ extension IQChannelsManager {
             }
             
             let newMessages = result.result?.0.filter { indexOfMessage(messageID: $0.messageID) == nil && $0.hasValidPayload } ?? []
+            
+            await sendUnsendMessages()
             DispatchQueue.main.async {
                 self.detailViewModel?.enableAnimMessages = true
             }
@@ -1352,14 +1353,8 @@ extension IQChannelsManager: IQNetworkStatusManagerDelegate {
             if !authResults.isEmpty {
                 state = .authenticated
                 await loadMessagesAndMerge()
-//                loadMessages()
-//                listenToUnread()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
                     self?.uploadUnsentMessages()
-//                    Task {
-//                        print("!!!!!!!!!!!!!!! sendUnsendMessages")
-//                        await self?.sendUnsendMessages()
-//                    }
                 }
             } else if let loginType, state != .authenticating {
                 authAttempt = 0
