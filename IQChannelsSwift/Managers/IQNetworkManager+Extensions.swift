@@ -10,16 +10,14 @@ import Foundation
 extension IQNetworkManager: URLSessionDelegate {
     func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge,
                     completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-              let serverTrust = challenge.protectionSpace.serverTrust else {
-            completionHandler(.performDefaultHandling, nil)
-            return
+        guard let serverTrust = challenge.protectionSpace.serverTrust else {
+            return completionHandler(.useCredential, nil)
         }
 
         guard let certificatePath = Bundle.main.path(forResource: "RussianTrustedRootCA", ofType: "cer"),
-              let certificateData = try? Data(contentsOf: URL(fileURLWithPath: certificatePath)),
-              let customCertificate = SecCertificateCreateWithData(nil, certificateData as CFData) else {
-            completionHandler(.performDefaultHandling, nil)
+        let certificateData = try? Data(contentsOf: URL(fileURLWithPath: certificatePath)),
+        let customCertificate = SecCertificateCreateWithData(nil, certificateData as CFData) else {
+            completionHandler(.useCredential, URLCredential(trust: serverTrust))
             return
         }
 
