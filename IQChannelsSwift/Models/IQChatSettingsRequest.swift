@@ -7,4 +7,5 @@
 
 struct IQChatSettingsRequest: Encodable {
     var clientId: Int?
+    var chatType: IQChatType?
 }

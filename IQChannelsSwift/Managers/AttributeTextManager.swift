@@ -4,8 +4,12 @@ import SwiftUI
 final class AttributeTextManager {
     static let shared: AttributeTextManager = .init()
     
-    private init() {}
-
+    private let cache = NSCache<NSString, CachedAttributeText>()
+    
+    private init() {
+        cache.totalCostLimit = 50 * 1024 * 1024
+    }
+    
     func getString(
         from markdown: String,
         textColor: UIColor,
@@ -14,6 +18,10 @@ final class AttributeTextManager {
         isBold: Bool,
         isItalic: Bool
     ) -> (NSAttributedString, [Link]) {
+        let cacheKey = "\(markdown)|\(textColor.hashValue)|\(fontSize.hashValue)|\(alingment.hashValue)|\(isBold)|\(isItalic)" as NSString
+        if let cached = cache.object(forKey: cacheKey) {
+            return (cached.attributed, cached.links)
+        }
 
         var formattedMarkdown = markdown.replacingOccurrences(of: "\\\n", with: "\n")
 
@@ -436,9 +444,22 @@ final class AttributeTextManager {
             }
         }
 
+        let cached = CachedAttributeText(attributed: attributedString, links: linkRanges)
+        cache.setObject(cached, forKey: cacheKey, cost: attributedString.length)
+        
         return (
-            attributedString,
-            linkRanges
+            cached.attributed,
+            cached.links
         )
+    }
+}
+
+final class CachedAttributeText {
+    let attributed: NSAttributedString
+    let links: [Link]
+    
+    init(attributed: NSAttributedString, links: [Link]) {
+        self.attributed = attributed
+        self.links = links
     }
 }

@@ -26,7 +26,12 @@ struct ChatListView: View {
                                 Button {
                                     output.listController(didSelectChat: chatInfo)
                                 } label: {
-                                    ChatListCellView(chatInfoModel: chatInfo)
+                                    ChatListCellView(
+                                        chatInfoModel: chatInfo,
+                                        unreadInfo: viewModel.advancedUnread.first {
+                                            $0.name == chatInfo.channel && $0.chatType == chatInfo.chatType.rawValue
+                                        }
+                                    )
                                 }
                             }
                         }

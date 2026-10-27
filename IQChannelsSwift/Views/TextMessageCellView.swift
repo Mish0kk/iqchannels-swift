@@ -22,17 +22,26 @@ struct TextMessageCellView: View {
     @State private var cachedText: (NSAttributedString, [Link])?
     
     private func loadText() {
-        let result = AttributeTextManager.shared.getString(
-            from: message.text ?? "",
-            textColor: textColor,
-            fontSize: fontSize,
-            alingment: aligment,
-            isBold: isBold,
-            isItalic: isItalic
-        )
+        let textColor = self.textColor
+        let fontSize = self.fontSize
+        let aligment = self.aligment
+        let isBold = self.isBold
+        let isItalic = self.isItalic
+        let rawText = message.text ?? ""
+        
+        DispatchQueue.global().async {
+            let result = AttributeTextManager.shared.getString(
+                from: rawText,
+                textColor: textColor,
+                fontSize: fontSize,
+                alingment: aligment,
+                isBold: isBold,
+                isItalic: isItalic
+            )
 
-        DispatchQueue.main.async {
-            self.cachedText = result
+            DispatchQueue.main.async {
+                self.cachedText = result
+            }
         }
     }
     
@@ -124,7 +133,14 @@ struct TextMessageCellView: View {
                         .layoutPriority(1)
                         .padding(.horizontal, 12)
                     } else {
-                        Text("")
+                        PlainMessageText(text: text,
+                                         textColor: textColor,
+                                         fontSize: fontSize,
+                                         aligment: aligment,
+                                         isBold: isBold,
+                                         isItalic: isItalic)
+                        .layoutPriority(1)
+                        .padding(.horizontal, 12)
                     }
                 }
                 .onAppear {
@@ -179,6 +195,32 @@ struct TextMessageCellView: View {
             triggerHapticFeedback(style: .medium)
             onLongPress?(MessageControlInfo(message: message, replyMessage: replyMessage, frame: frame))
         }
+    }
+}
+
+struct PlainMessageText: View {
+    let text: String
+    let textColor: UIColor
+    let fontSize: CGFloat
+    let aligment: TextAlignment
+    let isBold: Bool
+    let isItalic: Bool
+    
+    var body: some View {
+        if #available(iOS 16.0, *) {
+            content
+                .bold(isBold)
+                .italic(isItalic)
+        } else {
+            content
+        }
+    }
+    
+    private var content: some View {
+        Text(text)
+            .font(.system(size: fontSize))
+            .foregroundColor(Color(textColor))
+            .multilineTextAlignment(aligment)
     }
 }
 

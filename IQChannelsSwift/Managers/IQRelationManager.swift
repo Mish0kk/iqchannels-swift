@@ -43,6 +43,7 @@ class IQRelationManager {
         for (key, message) in messages.enumerated() {
             if let userId = message.userID { messages[key].user = map?.users[userId] }
             if let fileId = message.fileID { messages[key].file = map?.files[fileId] }
+            if let fileIds = message.fileIDs { messages[key].files = fileIds.compactMap { map?.files[$0] } }
             if let clientId = message.clientID { messages[key].client = map?.clients[clientId] }
             if let ratingId = message.ratingID {
                 messages[key].rating = map?.ratings[ratingId]
