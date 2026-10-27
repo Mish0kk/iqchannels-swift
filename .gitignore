@@ -47,7 +47,6 @@ Package.resolved
 
 # Editors / AI
 .vscode/
-AGENTS.md
 
 # Xcode workspace settings
 **/*.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings

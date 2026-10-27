@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
     s.name             = 'IQChannelsSwift'
-    s.version          = '2.4.6'
+    s.version          = '2.4.7'
     s.summary          = 'A short description of IQChannelsSwift.'
     
     # This description is used to generate tags and improve search results.
