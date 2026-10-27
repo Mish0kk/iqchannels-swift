@@ -15,10 +15,15 @@ extension IQChannelsManager: IQChannelsManagerListOutput {
 //        logout()
     }
     
+    func listControllerDidAppear() {
+        trackScreenView()
+    }
+    
     func listController(didSelectChat item: IQChatItemModel) {
         guard let authResult = authResults.first(where: { $0.channel == item.channel } ) else { return }
         
         selectedChat = (authResult, item.chatType)
+        trackChannelEnter(chat: (authResult, item.chatType), once: false)
     }
 }
 

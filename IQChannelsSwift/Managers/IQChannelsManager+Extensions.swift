@@ -48,6 +48,7 @@ extension IQChannelsManager {
                     if let self, let chat {
                         if let detailViewModel, isSingleChatExpected {
                             configureDetailViewModel(detailViewModel, for: chat)
+                            trackChannelEnter(chat: chat, once: true)
                         } else {
                             let detail = getDetailViewController(for: chat, showNavBar: true)
                             listViewModel?.chatToPresentListener.send(detail)
@@ -1522,6 +1523,61 @@ extension IQChannelsManager {
         }
     }
     
+}
+
+//MARK: - Analytics
+extension IQChannelsManager {
+
+    static func analyticsScreenViewPayload(items: [IQChatItemModel], unread: [Channel]) -> [String: IQAnalyticsJSONValue] {
+        let unreadTotal = items.reduce(0) { sum, item in
+            sum + Self.unreadInChannel(unread, item: item)
+        }
+        return IQAnalyticsEvent.screenViewPayload(channelCount: items.count, unreadTotal: unreadTotal)
+    }
+
+    static func analyticsChannelEnterPayload(item: IQChatItemModel, channelID: Int?, unread: [Channel]) -> [String: IQAnalyticsJSONValue] {
+        IQAnalyticsEvent.channelEnterPayload(
+            name: item.info?.channelName ?? item.channel,
+            type: item.chatType,
+            channelID: channelID,
+            unreadInChannel: Self.unreadInChannel(unread, item: item)
+        )
+    }
+
+    private static func unreadInChannel(_ unread: [Channel], item: IQChatItemModel) -> Int {
+        unread.first(where: { $0.name == item.channel && $0.chatType == item.chatType.rawValue })?.unreadCount ?? 0
+    }
+
+    func trackScreenView() {
+        let items = displayChatItems(from: authResults, config: config) ?? []
+        let unread = IQChannelsManager.advancedUnread?.channels ?? []
+        Task {
+            await analytics.trackAll(
+                type: .screenView,
+                payload: IQChannelsManager.analyticsScreenViewPayload(items: items, unread: unread)
+            )
+        }
+    }
+
+    func trackChannelEnter(chat: (auth: AuthResult, chatType: IQChatType), once: Bool) {
+        let item = IQChatItemModel(
+            channel: chat.auth.channel,
+            info: chat.auth.auth.client?.multiChatsInfo,
+            chatType: chat.chatType
+        )
+        let payload = IQChannelsManager.analyticsChannelEnterPayload(
+            item: item,
+            channelID: chat.auth.auth.client?.channelID,
+            unread: IQChannelsManager.advancedUnread?.channels ?? []
+        )
+        Task {
+            if once {
+                await analytics.trackChannelEnterOnce(channel: chat.auth.channel, payload: payload)
+            } else {
+                await analytics.track(channel: chat.auth.channel, type: .channelEnter, payload: payload)
+            }
+        }
+    }
 }
 
 //MARK: - Network Status

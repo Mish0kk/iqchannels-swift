@@ -34,6 +34,7 @@ final class IQAnalyticsManager {
     private var channels: [String: ChannelAnalytics] = [:]
     private var source: String?
     private var sourceAttributionSent = false
+    private var channelEnterSent = false
     private let isOnline: () -> Bool
 
     init(isOnline: @escaping () -> Bool = { true }) {
@@ -75,6 +76,12 @@ final class IQAnalyticsManager {
         )
     }
 
+    func trackChannelEnterOnce(channel: String, payload: [String: IQAnalyticsJSONValue]?) async {
+        guard !channelEnterSent else { return }
+        channelEnterSent = true
+        await track(channel: channel, type: .channelEnter, payload: payload)
+    }
+
     func trackAll(type: IQAnalyticsEventType, payload: [String: IQAnalyticsJSONValue]?) async {
         var seenProjects = Set<Int>()
         for (channel, item) in channels {
@@ -91,6 +98,7 @@ final class IQAnalyticsManager {
         channels = [:]
         source = nil
         sourceAttributionSent = false
+        channelEnterSent = false
     }
 
     func flushCaches() async {

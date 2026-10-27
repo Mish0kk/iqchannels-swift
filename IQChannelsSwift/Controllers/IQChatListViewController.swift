@@ -32,6 +32,11 @@ class IQChatListViewController: IQViewController {
     }
 
     // MARK: - LIFECYCLE
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        output.listControllerDidAppear()
+    }
+    
     override func setupSwiftUI() {
         let hostView: ChatListView = .init(viewModel: viewModel, output: output)
         let controller: UIHostingController = .init(rootView: hostView)
