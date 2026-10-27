@@ -4,9 +4,11 @@ import XCTest
 final class AnalyticsModelsTests: XCTestCase {
 
     func testClientAuthDecodesAnalyticsBlockAndClientIdentity() throws {
-        let json = """
-        {"Client":{"Id":1,"ProjectId":307,"CRMClientId":"101","ChannelId":42},"Session":{"Id":9,"Token":"t"},"analytics":{"enabled":true,"events":["screen_view","link_click"],"viewability_threshold_ms":800}}
-        """.data(using: .utf8)!
+        let json = Data("""
+        {"Client":{"Id":1,"ProjectId":307,"CRMClientId":"101","ChannelId":42},
+         "Session":{"Id":9,"Token":"t"},
+         "analytics":{"enabled":true,"events":["screen_view","link_click"],"viewability_threshold_ms":800}}
+        """.utf8)
 
         let auth = try IQJSONDecoder().decode(IQClientAuth.self, from: json)
 
@@ -21,9 +23,9 @@ final class AnalyticsModelsTests: XCTestCase {
     }
 
     func testAnalyticsBlockAbsentMeansNil() throws {
-        let json = """
+        let json = Data("""
         {"Client":{"Id":1,"ProjectId":307},"Session":{"Id":9}}
-        """.data(using: .utf8)!
+        """.utf8)
 
         let auth = try IQJSONDecoder().decode(IQClientAuth.self, from: json)
 
@@ -61,10 +63,10 @@ final class AnalyticsModelsTests: XCTestCase {
     }
 
     private func decodeConfig(_ json: String) throws -> IQAnalyticsConfig {
-        return try IQJSONDecoder().decode(IQAnalyticsConfig.self, from: json.data(using: .utf8)!)
+        return try IQJSONDecoder().decode(IQAnalyticsConfig.self, from: Data(json.utf8))
     }
 
     private func decodeMessage(_ json: String) throws -> IQMessage {
-        return try IQJSONDecoder().decode(IQMessage.self, from: json.data(using: .utf8)!)
+        return try IQJSONDecoder().decode(IQMessage.self, from: Data(json.utf8))
     }
 }

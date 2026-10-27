@@ -164,17 +164,24 @@ final class AnalyticsManagerTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private static let fullConfig = #"{"enabled":true,"events":["screen_view","channel_enter","source_attribution","offer_read","offer_skipped","link_click"],"viewability_threshold_ms":1500}"#
+    private static let fullConfig =
+        #"{"enabled":true,"events":["screen_view","channel_enter","source_attribution""#
+        + #","offer_read","offer_skipped","link_click"],"viewability_threshold_ms":1500}"#
 
     private static func makeManager(online: Bool = true) -> IQAnalyticsManager {
         IQAnalyticsManager(isOnline: { online })
     }
 
-    private static func result(channel: String, projectID: Int = 1, config: String?) -> (channel: String, auth: IQClientAuth) {
-        let analytics = config.flatMap { $0.data(using: .utf8) }.flatMap { try? IQJSONDecoder().decode(IQAnalyticsConfig.self, from: $0) }
-        let client = IQClient(id: 1, name: nil, integrationID: nil, personalManagerID: nil,
-                              personalManagerGroupID: nil, multiChatsInfo: nil,
-                              projectID: projectID, crmClientID: "101", channelID: 42)
+    private static func result(
+        channel: String, projectID: Int = 1, config: String?
+    ) -> (channel: String, auth: IQClientAuth) {
+        let data = config.flatMap { Data($0.utf8) }
+        let analytics = data.flatMap { try? IQJSONDecoder().decode(IQAnalyticsConfig.self, from: $0) }
+        let client = IQClient(
+            id: 1, name: nil, integrationID: nil, personalManagerID: nil,
+            personalManagerGroupID: nil, multiChatsInfo: nil,
+            projectID: projectID, crmClientID: "101", channelID: 42
+        )
         return (channel, IQClientAuth(client: client, session: nil, analytics: analytics))
     }
 }

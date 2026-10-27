@@ -3,7 +3,8 @@ import XCTest
 
 final class AnalyticsEventTests: XCTestCase {
 
-    private let lowercaseV4UUID = #"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"#
+    private let lowercaseV4UUID =
+        #"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"#
 
     override func tearDown() {
         UserDefaults.standard.removeObject(forKey: "iqchannels_analytics_device_id")
@@ -35,10 +36,14 @@ final class AnalyticsEventTests: XCTestCase {
         XCTAssertEqual(dict["platform"] as? String, "ios")
         XCTAssertEqual(dict["app_version"] as? String, IQChannelsVersion.current)
         XCTAssertEqual(dict["source"] as? String, "push")
-        XCTAssertTrue((dict["event_id"] as? String ?? "").range(of: lowercaseV4UUID, options: .regularExpression) != nil)
-        XCTAssertTrue((dict["session_id"] as? String ?? "").range(of: lowercaseV4UUID, options: .regularExpression) != nil)
-        XCTAssertTrue((dict["device_id"] as? String ?? "").range(of: lowercaseV4UUID, options: .regularExpression) != nil)
-        XCTAssertTrue((dict["timestamp"] as? String ?? "").range(of: #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$"#, options: .regularExpression) != nil)
+        func matches(_ value: Any?, _ pattern: String) -> Bool {
+            (value as? String)?.range(of: pattern, options: .regularExpression) != nil
+        }
+
+        XCTAssertTrue(matches(dict["event_id"], lowercaseV4UUID))
+        XCTAssertTrue(matches(dict["session_id"], lowercaseV4UUID))
+        XCTAssertTrue(matches(dict["device_id"], lowercaseV4UUID))
+        XCTAssertTrue(matches(dict["timestamp"], #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$"#))
         XCTAssertFalse((dict["client_tz"] as? String ?? "").isEmpty)
 
         let payload = dict["payload"] as? [String: Any]
@@ -91,9 +96,8 @@ final class AnalyticsEventTests: XCTestCase {
             "tracking_id": .string("abc"), "message_id": .int(5), "channel_id": .int(42)
         ])
 
-        XCTAssertEqual(IQAnalyticsEvent.channelEnterPayload(name: nil, type: .info, channelID: nil, unreadInChannel: 0), [
-            "channel_type": .string("info"), "unread_in_channel": .int(0)
-        ])
+        let payload = IQAnalyticsEvent.channelEnterPayload(name: nil, type: .info, channelID: nil, unreadInChannel: 0)
+        XCTAssertEqual(payload, ["channel_type": .string("info"), "unread_in_channel": .int(0)])
     }
 
     func testSkipReasonsMatchContract() {
@@ -103,9 +107,11 @@ final class AnalyticsEventTests: XCTestCase {
     }
 
     private static func auth(crmClientID: String?, projectID: Int?) -> IQClientAuth {
-        let client = IQClient(id: 1, name: nil, integrationID: nil, personalManagerID: nil,
-                              personalManagerGroupID: nil, multiChatsInfo: nil,
-                              projectID: projectID, crmClientID: crmClientID, channelID: 42)
+        let client = IQClient(
+            id: 1, name: nil, integrationID: nil, personalManagerID: nil,
+            personalManagerGroupID: nil, multiChatsInfo: nil,
+            projectID: projectID, crmClientID: crmClientID, channelID: 42
+        )
         return IQClientAuth(client: client, session: nil, analytics: nil)
     }
 }

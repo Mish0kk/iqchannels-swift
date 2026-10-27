@@ -118,7 +118,10 @@ final class IQAnalyticsManager {
             let sender = item.sender
             let auth = item.auth
             Task {
-                await sender.send(IQAnalyticsEvent.make(type: .sourceAttribution, channelAuth: auth, source: source, payload: nil))
+                let event = IQAnalyticsEvent.make(
+                    type: .sourceAttribution, channelAuth: auth, source: source, payload: nil
+                )
+                await sender.send(event)
             }
         }
     }

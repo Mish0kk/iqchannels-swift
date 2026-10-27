@@ -96,7 +96,10 @@ final class IQAnalyticsSender {
         }
 
         if isRetry {
-            IQLog.error(message: "Событие аналитики \(event.event.rawValue) отброшено: повтор не удался, статус \(error.statusCode ?? 0)")
+            let status = error.statusCode ?? 0
+            IQLog.error(
+                message: "Событие аналитики \(event.event.rawValue) отброшено: повтор не удался, статус \(status)"
+            )
             return
         }
 

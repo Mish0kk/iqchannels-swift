@@ -21,7 +21,8 @@ final class AnalyticsScreenEventsTests: XCTestCase {
             payload: IQAnalyticsEvent.channelEnterPayload(name: "Канал", type: .chat, channelID: 1, unreadInChannel: 2)
         )
 
-        XCTAssertEqual(transport.sent.filter { $0.event == .channelEnter }.count, 1, "одноканальный режим — один вход за сессию")
+        let entered = transport.sent.filter { $0.event == .channelEnter }.count
+        XCTAssertEqual(entered, 1, "одноканальный режим — один вход за сессию")
 
         manager.reset()
         manager.activate(results: [Self.result(channel: "a")], source: nil, transports: ["a": transport])
@@ -81,18 +82,19 @@ final class AnalyticsScreenEventsTests: XCTestCase {
     // MARK: - Helpers
 
     private static func result(channel: String) -> (channel: String, auth: IQClientAuth) {
-        let analytics = try! IQJSONDecoder().decode(
-            IQAnalyticsConfig.self,
-            from: #"{"enabled":true,"events":["channel_enter"]}"#.data(using: .utf8)!
+        let configData = Data(#"{"enabled":true,"events":["channel_enter"]}"#.utf8)
+        let analytics = try? IQJSONDecoder().decode(IQAnalyticsConfig.self, from: configData)
+        let client = IQClient(
+            id: 1, name: nil, integrationID: nil, personalManagerID: nil,
+            personalManagerGroupID: nil, multiChatsInfo: nil,
+            projectID: 1, crmClientID: "101", channelID: nil
         )
-        let client = IQClient(id: 1, name: nil, integrationID: nil, personalManagerID: nil,
-                              personalManagerGroupID: nil, multiChatsInfo: nil,
-                              projectID: 1, crmClientID: "101", channelID: nil)
         return (channel, IQClientAuth(client: client, session: nil, analytics: analytics))
     }
 
     private static func item(channel: String, type: IQChatType) -> IQChatItemModel {
-        IQChatItemModel(channel: channel, info: IQMultiChatsInfo(channelName: channel == "finance" ? nil : "\(channel)-name"), chatType: type)
+        let name = channel == "finance" ? nil : "\(channel)-name"
+        return IQChatItemModel(channel: channel, info: IQMultiChatsInfo(channelName: name), chatType: type)
     }
 
     private static func channel(name: String, type: String, unread: Int) -> Channel {
