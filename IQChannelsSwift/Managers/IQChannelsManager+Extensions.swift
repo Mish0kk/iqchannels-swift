@@ -559,8 +559,8 @@ extension IQChannelsManager {
             }
         case "Open URL":
             guard let url = URL(string: action.url ?? "") else { return }
-            
-            UIApplication.shared.open(url)
+
+            openLink(url, message: nil)
         default: break
         }
         
@@ -1527,6 +1527,22 @@ extension IQChannelsManager {
 
 //MARK: - Analytics
 extension IQChannelsManager {
+
+    func openLink(_ url: URL, message: IQMessage?) {
+        if let trackingID = IQAnalyticsLink.trackingID(from: url) {
+            let payload = IQAnalyticsEvent.linkClickPayload(
+                trackingID: trackingID,
+                messageID: message?.messageID == 0 ? nil : message?.messageID,
+                channelID: message?.channelID ?? message?.chatID
+            )
+            if let channel = selectedChat?.auth.channel {
+                Task {
+                    await analytics.track(channel: channel, type: .linkClick, payload: payload)
+                }
+            }
+        }
+        UIApplication.shared.open(url)
+    }
 
     static func analyticsScreenViewPayload(items: [IQChatItemModel], unread: [Channel]) -> [String: IQAnalyticsJSONValue] {
         let unreadTotal = items.reduce(0) { sum, item in

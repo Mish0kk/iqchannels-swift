@@ -543,6 +543,10 @@ extension IQChatDetailViewController: ChatDetailViewDelegate {
             offerTracker?.hide(id: message.messageID, reason: .scrolledPast)
         }
     }
+
+    func onLinkTap(url: URL, message: IQMessage?) {
+        output.detailController(didTapLink: url, in: message)
+    }
     
     func onSendMessage(_ text: String) {
         output.detailController(didSend: text, files: viewModel.selectedFiles, replyToMessage: viewModel.messageToReply?.messageID)

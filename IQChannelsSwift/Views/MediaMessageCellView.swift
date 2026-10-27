@@ -14,6 +14,7 @@ struct MediaMessageCellView: View {
     private let onImageTapCompletion: (() -> Void)?
     private let onCancelImageSendCompletion: (() -> Void)?
     private let onReplyMessageTapCompletion: ((Int) -> Void)?
+    private let onLinkTap: ((URL) -> Void)?
     
     private let text: String
     private let isSender: Bool
@@ -162,7 +163,8 @@ struct MediaMessageCellView: View {
          embedded: Bool = false,
          onImageTapCompletion: (() -> Void)? = nil,
          onCancelImageSendCompletion: (() -> Void)? = nil,
-         onReplyMessageTapCompletion: ((Int) -> Void)? = nil) {
+         onReplyMessageTapCompletion: ((Int) -> Void)? = nil,
+         onLinkTap: ((URL) -> Void)? = nil) {
         self.message = message
         self.replyMessage = replyMessage
         self.file = file
@@ -170,6 +172,7 @@ struct MediaMessageCellView: View {
         self.onImageTapCompletion = onImageTapCompletion
         self.onCancelImageSendCompletion = onCancelImageSendCompletion
         self.onReplyMessageTapCompletion = onReplyMessageTapCompletion
+        self.onLinkTap = onLinkTap
         self.text = message.text ?? ""
         self.isSender = message.isMy ?? false
     }
@@ -241,7 +244,8 @@ struct MediaMessageCellView: View {
                     Group {
                         if let cachedText {
                             TextLabel(text: cachedText.0,
-                                      linkRanges: cachedText.1)
+                                      linkRanges: cachedText.1,
+                                      onLinkTap: onLinkTap)
                             .layoutPriority(1)
                             .padding(.horizontal, 12)
                         } else {

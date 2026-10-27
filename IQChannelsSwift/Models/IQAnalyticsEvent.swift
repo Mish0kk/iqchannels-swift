@@ -29,6 +29,19 @@ enum IQAnalyticsSkipReason: String {
     case appBackground = "app_background"
 }
 
+enum IQAnalyticsLink {
+
+    static func trackingID(from url: URL) -> String? {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let queryItems = components.queryItems else { return nil }
+        for item in queryItems where item.name == "iq_ref" {
+            guard let value = item.value, !value.isEmpty else { return nil }
+            return value
+        }
+        return nil
+    }
+}
+
 struct IQAnalyticsEvent: Encodable {
     var event: IQAnalyticsEventType
     var eventID: String

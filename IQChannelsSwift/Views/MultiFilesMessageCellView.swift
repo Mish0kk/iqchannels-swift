@@ -126,13 +126,19 @@ struct MultiFilesMessageCellView: View {
                         if let cachedText {
                             if #available(iOS 16.0, *) {
                                 TextLabel(text: cachedText.0,
-                                          linkRanges: cachedText.1)
+                                          linkRanges: cachedText.1,
+                                          onLinkTap: { [weak delegate] url in
+                                              delegate?.onLinkTap(url: url, message: message)
+                                          })
                                 .layoutPriority(1)
                                 .bold(isBold)
                                 .italic(isItalic)
                             } else {
                                 TextLabel(text: cachedText.0,
-                                          linkRanges: cachedText.1)
+                                          linkRanges: cachedText.1,
+                                          onLinkTap: { [weak delegate] url in
+                                              delegate?.onLinkTap(url: url, message: message)
+                                          })
                                 .layoutPriority(1)
                             }
                         } else {

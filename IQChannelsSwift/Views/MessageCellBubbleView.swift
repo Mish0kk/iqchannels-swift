@@ -38,12 +38,16 @@ struct MessageCellBubbleView: View {
     
     // MARK: - BODY
     var body: some View {
+        let onLinkTap: ((URL) -> Void)? = { [weak delegate] url in
+            delegate?.onLinkTap(url: url, message: message)
+        }
         switch message.payload {
         case .text:
             TextMessageCellView(message: message,
                                 replyMessage: replyMessage,
                                 onLongPress: onLongPress,
-                                onReplyMessageTapCompletion: onReplyMessageTapCompletion)
+                                onReplyMessageTapCompletion: onReplyMessageTapCompletion,
+                                onLinkTap: onLinkTap)
         case .file:
             if let files = message.files, files.count > 1 {
                 MultiFilesMessageCellView(message: message,
@@ -60,6 +64,8 @@ struct MessageCellBubbleView: View {
                         delegate?.onCancelUpload(message)
                     } onReplyMessageTapCompletion: { messageId in
                         onReplyMessageTapCompletion?(messageId)
+                    } onLinkTap: { url in
+                        onLinkTap?(url)
                     }
                 } else if file.isFile {
                     FilePreviewCellView(message: message, replyMessage: replyMessage) {
@@ -68,6 +74,8 @@ struct MessageCellBubbleView: View {
                         delegate?.onCancelUpload(message)
                     } onReplyMessageTapCompletion: { messageId in
                         onReplyMessageTapCompletion?(messageId)
+                    } onLinkTap: { url in
+                        onLinkTap?(url)
                     }
                 }
             }

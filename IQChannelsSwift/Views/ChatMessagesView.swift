@@ -90,7 +90,9 @@ struct ChatMessagesView: View {
                                             }
                                         }
                                     }else{
-                                        SystemMessageCellView(message: message)
+                                        SystemMessageCellView(message: message) { [weak delegate] url in
+                                        delegate?.onLinkTap(url: url, message: message)
+                                    }
                                             .onAppear {
                                                 delegate?.onMessageAppear(with: message.messageID)
                                             }

@@ -141,4 +141,8 @@ extension IQChannelsManager: IQChannelsManagerDetailOutput {
             await analytics.track(channel: channel, type: .offerSkipped, payload: payload)
         }
     }
+
+    func detailController(didTapLink url: URL, in message: IQMessage?) {
+        openLink(url, message: message)
+    }
 }

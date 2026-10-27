@@ -31,4 +31,5 @@ protocol IQChannelsManagerDetailOutput {
     func detailControllerOfferViewabilityThresholdMs() -> Int?
     func detailController(didReadOffer message: IQMessage, visibleDurationMs: Int)
     func detailController(didSkipOffer message: IQMessage, reason: IQAnalyticsSkipReason)
+    func detailController(didTapLink url: URL, in message: IQMessage?)
 }
