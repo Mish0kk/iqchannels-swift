@@ -40,6 +40,7 @@ class IQChannelsManager: IQChannelsManagerProtocol {
     var isAnonim = false
     var isLoadingOldMessages = false
     var typingSentDate: Date?
+    var advancedUnreadBounceTask: Task<Void, Never>?
     var didSendAttachments = false
     var fileLimit: IQFileConfig?
     var eventListener: IQChannelsEventListenerProtocol?
@@ -114,6 +115,11 @@ class IQChannelsManager: IQChannelsManagerProtocol {
     func setListViewModel(_ viewModel: IQChatListViewModel?) {
         self.listViewModel = viewModel
         listViewModel?.chatsInfo = getChatItems(from: authResults, config: config)
+        listViewModel?.advancedUnread = IQChannelsManager.advancedUnread?.channels ?? []
+        
+        if !isSingleChatExpected && IQChannelsManager.advancedUnread == nil && !authResults.isEmpty {
+            getAdvancedUnread()
+        }
     }
     
     func addEvent(listener: any IQChannelsEventListenerProtocol) {

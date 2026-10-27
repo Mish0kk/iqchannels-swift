@@ -45,7 +45,14 @@ struct MessageCellBubbleView: View {
                                 onLongPress: onLongPress,
                                 onReplyMessageTapCompletion: onReplyMessageTapCompletion)
         case .file:
-            if let file = message.file {
+            if let files = message.files, files.count > 1 {
+                MultiFilesMessageCellView(message: message,
+                                          replyMessage: replyMessage,
+                                          files: files,
+                                          sessionToken: sessionToken,
+                                          delegate: delegate,
+                                          onReplyMessageTapCompletion: onReplyMessageTapCompletion)
+            } else if let file = message.file {
                 if file.isImage {
                     MediaMessageCellView(message: message, replyMessage: replyMessage) {
                         delegate?.onFileTap(file, sessionToken: sessionToken)

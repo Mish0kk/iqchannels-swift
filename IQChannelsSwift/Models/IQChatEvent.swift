@@ -21,5 +21,12 @@ struct IQChatEvent: Decodable {
     var user: IQUser?
     var chat: IQChat?
     var message: IQMessage?
+    var chatSubtitle: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, type, chatID, messageID, clientID, userID
+        case messages, client, user, chat, message
+        case chatSubtitle = "chat_subtitle"
+    }
 }
 

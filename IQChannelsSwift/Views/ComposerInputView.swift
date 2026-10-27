@@ -146,13 +146,15 @@ class InputTextView: UITextView {
     }
 
     open func textDidChangeProgrammatically() {
+        setContentOffset(.zero, animated: false)
+        scrollRangeToVisible(NSRange(location: 0, length: 0))
         delegate?.textViewDidChange?(self)
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
 
-        if frame.size.height == CustomTextAreaConfig.minHeight {
+        if frame.size.height <= CustomTextAreaConfig.minHeight {
             let rect = layoutManager.usedRect(for: textContainer)
             let topInset = (frame.size.height - rect.height) / 2.0
             textContainerInset.top = max(0, topInset)

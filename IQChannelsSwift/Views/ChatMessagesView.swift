@@ -147,7 +147,7 @@ struct ChatMessagesView: View {
         .onTapGesture {
             isMenuVisibleMessage = nil
         }
-        .animation(isScrollDownVisible || !viewModel.enableAnimMessages ? nil : .easeInOut(duration: 0.25), value: viewModel.messages)
+        .animation(isScrollDownVisible || !viewModel.enableAnimMessages || viewModel.disableMessagesAnimation ? nil : .easeInOut(duration: 0.25), value: viewModel.messages)
     }
     
     // MARK: - VIEWS

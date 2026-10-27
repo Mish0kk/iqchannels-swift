@@ -24,7 +24,7 @@ protocol IQNetworkManagerProtocol {
     func sendReadEvent(_ messageIDs: [Int]) async -> Error?
     func sendTypingEvent() async -> Error?
     func getFile(id: String) async throws -> IQFile?
-    func loadMessages(request: IQLoadMessageRequest, getSettings: Bool, isInfoChat: Bool, language: String?) async -> ResponseCallback<([IQMessage], Bool, Int?, String, [IQLanguage]?)>
+    func loadMessages(request: IQLoadMessageRequest, getSettings: Bool, isInfoChat: Bool, language: String?) async -> ResponseCallback<([IQMessage], Bool, Int?, String, [IQLanguage]?, String?)>
     func getBlocker() async -> ResponseCallback<IQInfoChatSettings>
     func rate(value: Int, ratingID: Int) async -> Error?
     func sendPoll(request: IQSendPollRequest) async -> Error?

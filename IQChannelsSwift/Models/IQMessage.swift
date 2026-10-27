@@ -14,6 +14,7 @@ struct IQMessage: Codable, Identifiable, Equatable {
     var messageID: Int = 0
     var localID: Int?
     var fileID: String?
+    var fileIDs: [String]?
     var chatID: Int?
     var createdAt: Int?
     var userID: Int?
@@ -38,7 +39,7 @@ struct IQMessage: Codable, Identifiable, Equatable {
     enum CodingKeys: String, CodingKey {
         case messageID = "id"
         case isRead = "read"
-        case payload, text, userID, clientID, fileID, chatID, createdAt, localID, isDropDown, singleChoices, product, actions, replyToMessageID, botpressPayload, disableFreeText, ratingID, author, transferToChannel
+        case payload, text, userID, clientID, fileID, fileIDs, chatID, createdAt, localID, isDropDown, singleChoices, product, actions, replyToMessageID, botpressPayload, disableFreeText, ratingID, author, transferToChannel
     }
 
     //MARK: - Custom
@@ -54,6 +55,7 @@ struct IQMessage: Codable, Identifiable, Equatable {
     var client: IQClient?
     var user: IQUser?
     var file: IQFile?
+    var files: [IQFile]?
     var rating: IQRating?
 
     //MARK: - Computed
@@ -250,6 +252,7 @@ struct IQMessage: Codable, Identifiable, Equatable {
         copy.user = message.user
         copy.client = message.client
         copy.file = message.file
+        copy.files = message.files
         copy.rating = message.rating
         return copy
     }

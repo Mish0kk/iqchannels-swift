@@ -185,7 +185,7 @@ class IQChatDetailViewController: IQViewController {
             
             self?.dropdown = nil
             self?.viewModel.selectedLanguage = selected
-            self?.statusLabel.text = IQChannelsState.authenticated.description
+            self?.statusLabel.text = self?.resolvedChatSubtitle()
         }
         menu.show(from: languageButton, in: view)
         dropdown = menu
@@ -285,7 +285,7 @@ class IQChatDetailViewController: IQViewController {
                 hasNetwork ? self.loadingView.stopAnimating() : self.loadingView.startAnimating()
                 self.loadingView.isHidden = hasNetwork
                 self.loadingView.alpha = hasNetwork ? 0 : 1
-                self.statusLabel.text = state.description
+                self.statusLabel.text = self.resolvedChatSubtitle(for: state)
             }
             .store(in: &subscriptions)
         
@@ -300,15 +300,28 @@ class IQChatDetailViewController: IQViewController {
                     if (user != nil){
                         self.statusLabel.text = "\(user?.displayName ?? "Оператор") \(IQLanguageTexts.model.operatorTyping ?? "печатает...")"
                     } else {
-                        self.statusLabel.text = IQChannelsState.authenticated.description
+                        self.statusLabel.text = self.resolvedChatSubtitle()
                     }
                 }, completion: nil)
             }.store(in: &subscriptions)
         
         viewModel.$chatLabel
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] title in
+            .receive(on: DispatchQueue.main).sink { [weak self] title in
                 self?.titleLabel.text = title
+            }
+            .store(in: &cancellables)
+        
+        viewModel.$chatSubtitle
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.statusLabel.text = self?.resolvedChatSubtitle()
+            }
+            .store(in: &cancellables)
+        
+        viewModel.$chatSettingsLoaded
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.statusLabel.text = self?.resolvedChatSubtitle()
             }
             .store(in: &cancellables)
         
@@ -333,6 +346,16 @@ class IQChatDetailViewController: IQViewController {
     }
     
     // MARK: - ACTIONS
+    private func resolvedChatSubtitle(for state: IQChannelsState = .authenticated) -> String {
+        if let subtitle = viewModel.chatSubtitle {
+            return subtitle
+        }
+        guard state == .authenticated else {
+            return state.description
+        }
+        return viewModel.chatSettingsLoaded ? state.description : ""
+    }
+    
     @objc
     private func onTapBack() {
         if viewModel.backDismisses {

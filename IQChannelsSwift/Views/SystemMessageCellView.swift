@@ -72,5 +72,8 @@ struct SystemMessageCellView: View {
         .onAppear {
             loadText()
         }
+        .onChange(of: message) { _ in
+            loadText()
+        }
     }
 }
