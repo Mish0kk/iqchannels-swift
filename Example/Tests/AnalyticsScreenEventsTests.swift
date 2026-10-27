@@ -6,7 +6,7 @@ final class AnalyticsScreenEventsTests: XCTestCase {
     func testTrackChannelEnterOnceSendsSingleEventUntilReset() async {
         let manager = IQAnalyticsManager(isOnline: { true })
         let transport = MockTransport(script: [.success, .success, .success])
-        manager.activate(
+        await manager.activate(
             results: [Self.result(channel: "a")],
             source: nil,
             transports: ["a": transport]
@@ -24,8 +24,8 @@ final class AnalyticsScreenEventsTests: XCTestCase {
         let entered = transport.sent.filter { $0.event == .channelEnter }.count
         XCTAssertEqual(entered, 1, "одноканальный режим — один вход за сессию")
 
-        manager.reset()
-        manager.activate(results: [Self.result(channel: "a")], source: nil, transports: ["a": transport])
+        await manager.reset()
+        await manager.activate(results: [Self.result(channel: "a")], source: nil, transports: ["a": transport])
 
         await manager.trackChannelEnterOnce(
             channel: "a",

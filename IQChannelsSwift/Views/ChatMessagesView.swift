@@ -34,6 +34,7 @@ struct ChatMessagesView: View {
     @State private var isMenuVisibleMessage: IQMessage? = nil
     @State private var viewportSize: CGSize = .zero
     @State private var visibleOfferIDs: Set<Int> = []
+    @State private var lastOfferReports: [OfferFrameReport] = []
     
     var loaderColor: Color {
         return IQStyle.getColor(theme: IQStyle.model?.chat?.chatLoader) ?? Color(hex: "555555")
@@ -178,8 +179,10 @@ struct ChatMessagesView: View {
         }
         .onPreferenceChange(ScrollViewportSizePreferenceKey.self) { size in
             viewportSize = size
+            handleOfferVisibility(lastOfferReports)
         }
         .onPreferenceChange(OfferFramePreferenceKey.self) { reports in
+            lastOfferReports = reports
             handleOfferVisibility(reports)
         }
         .onTapGesture {
@@ -315,6 +318,7 @@ struct ChatMessagesView: View {
     private func handleOfferVisibility(_ reports: [OfferFrameReport]) {
         let viewport = CGRect(origin: .zero, size: viewportSize)
         guard viewportSize.width > 0, viewportSize.height > 0 else { return }
+        lastOfferReports = reports
 
         let currentlyVisible = Set(reports.compactMap { report -> Int? in
             guard report.frame.height > 0 else { return nil }

@@ -19,6 +19,7 @@ class IQChatDetailViewController: IQViewController {
     private var cancellables = Set<AnyCancellable>()
 
     private var offerTracker: IQAnalyticsViewabilityTracker?
+    private var offerChannel: String?
     private var offerTickTimer: Timer?
     private var appBackgroundObserver: NSObjectProtocol?
     
@@ -238,7 +239,14 @@ class IQChatDetailViewController: IQViewController {
     }
     
     override func bindViewModel() {
-        setupOfferTracking()
+        ensureOfferTracking()
+
+        viewModel.$messages
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.ensureOfferTracking()
+            }.store(in: &subscriptions)
 
         viewModel.dismissListener
             .receive(on: DispatchQueue.main)
@@ -384,11 +392,19 @@ class IQChatDetailViewController: IQViewController {
     }
 
     // MARK: - PRIVATE METHODS
-    private func setupOfferTracking() {
-        guard let thresholdMs = output.detailControllerOfferViewabilityThresholdMs(), thresholdMs > 0 else {
-            return
+    private func ensureOfferTracking() {
+        guard offerTracker == nil else { return }
+        Task { @MainActor [weak self] in
+            guard let self, self.offerTracker == nil,
+                  let context = await self.output.detailControllerOfferTrackingContext() else { return }
+            self.setupOfferTracking(channel: context.channel, thresholdMs: context.thresholdMs)
         }
+    }
 
+    private func setupOfferTracking(channel: String, thresholdMs: Int) {
+        guard thresholdMs > 0 else { return }
+
+        offerChannel = channel
         let tracker = IQAnalyticsViewabilityTracker(thresholdMs: thresholdMs)
         tracker.onRead = { [weak self] messageID, durationMs in
             self?.trackOffer(messageID: messageID, readWithDurationMs: durationMs)
@@ -411,11 +427,12 @@ class IQChatDetailViewController: IQViewController {
     }
 
     private func trackOffer(messageID: Int, readWithDurationMs durationMs: Int? = nil, skippedWithReason reason: IQAnalyticsSkipReason? = nil) {
-        guard let message = viewModel.messages.first(where: { $0.messageID == messageID }) else { return }
+        guard let channel = offerChannel,
+              let message = viewModel.messages.first(where: { $0.messageID == messageID }) else { return }
         if let durationMs {
-            output.detailController(didReadOffer: message, visibleDurationMs: durationMs)
+            output.detailController(didReadOffer: message, channel: channel, visibleDurationMs: durationMs)
         } else if let reason {
-            output.detailController(didSkipOffer: message, reason: reason)
+            output.detailController(didSkipOffer: message, channel: channel, reason: reason)
         }
     }
 

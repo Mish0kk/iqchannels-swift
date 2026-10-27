@@ -28,8 +28,8 @@ protocol IQChannelsManagerDetailOutput {
     func detailController(didPick results: [PHPickerResult])
     func detailControllerSelectLanguage(didSelect language: IQLanguage)
     func detailController(didChangeSegment message: IQMessage)
-    func detailControllerOfferViewabilityThresholdMs() -> Int?
-    func detailController(didReadOffer message: IQMessage, visibleDurationMs: Int)
-    func detailController(didSkipOffer message: IQMessage, reason: IQAnalyticsSkipReason)
+    func detailControllerOfferTrackingContext() async -> (channel: String, thresholdMs: Int)?
+    func detailController(didReadOffer message: IQMessage, channel: String, visibleDurationMs: Int)
+    func detailController(didSkipOffer message: IQMessage, channel: String, reason: IQAnalyticsSkipReason)
     func detailController(didTapLink url: URL, in message: IQMessage?)
 }

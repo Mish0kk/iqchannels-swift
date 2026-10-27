@@ -113,13 +113,12 @@ extension IQChannelsManager: IQChannelsManagerDetailOutput {
         changeSegment(message)
     }
 
-    func detailControllerOfferViewabilityThresholdMs() -> Int? {
+    func detailControllerOfferTrackingContext() async -> (channel: String, thresholdMs: Int)? {
         guard let channel = selectedChat?.auth.channel else { return nil }
-        return analytics.thresholdMs(channel: channel)
+        return await analytics.offerTrackingContext(channel: channel)
     }
 
-    func detailController(didReadOffer message: IQMessage, visibleDurationMs: Int) {
-        guard let channel = selectedChat?.auth.channel else { return }
+    func detailController(didReadOffer message: IQMessage, channel: String, visibleDurationMs: Int) {
         let payload = IQAnalyticsEvent.offerReadPayload(
             messageID: message.messageID,
             channelID: message.channelID ?? message.chatID,
@@ -130,8 +129,7 @@ extension IQChannelsManager: IQChannelsManagerDetailOutput {
         }
     }
 
-    func detailController(didSkipOffer message: IQMessage, reason: IQAnalyticsSkipReason) {
-        guard let channel = selectedChat?.auth.channel else { return }
+    func detailController(didSkipOffer message: IQMessage, channel: String, reason: IQAnalyticsSkipReason) {
         let payload = IQAnalyticsEvent.offerSkippedPayload(
             messageID: message.messageID,
             channelID: message.channelID ?? message.chatID,

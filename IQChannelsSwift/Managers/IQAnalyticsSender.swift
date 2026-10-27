@@ -14,7 +14,7 @@ protocol IQAnalyticsTransport: AnyObject {
     func send(_ event: IQAnalyticsEvent) async -> Result<Void, IQAnalyticsSendError>
 }
 
-final class IQAnalyticsSender {
+actor IQAnalyticsSender {
 
     static let maxCachedEvents = 3
     static let retryDelay: TimeInterval = 2

@@ -5,7 +5,7 @@
 
 import Foundation
 
-enum IQAnalyticsEventType: String {
+enum IQAnalyticsEventType: String, Encodable {
     case screenView = "screen_view"
     case channelEnter = "channel_enter"
     case sourceAttribution = "source_attribution"

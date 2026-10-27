@@ -9,7 +9,8 @@ final class AnalyticsSenderTests: XCTestCase {
 
         await sender.send(Self.event())
 
-        XCTAssertTrue(sender.disabled, "403 + forbidden должен отключить отправку")
+        let disabled = await sender.disabled
+        XCTAssertTrue(disabled, "403 + forbidden должен отключить отправку")
         XCTAssertEqual(transport.sent.count, 1)
 
         await sender.send(Self.event())
@@ -22,7 +23,8 @@ final class AnalyticsSenderTests: XCTestCase {
 
         await sender.send(Self.event())
 
-        XCTAssertFalse(sender.disabled)
+        let disabled = await sender.disabled
+        XCTAssertFalse(disabled)
         XCTAssertEqual(transport.sent.count, 1, "клиентская ошибка не ретраится")
         await XCTAssertEqualAsync(await sender.pendingCacheCount(), 0)
     }
@@ -49,7 +51,8 @@ final class AnalyticsSenderTests: XCTestCase {
 
         XCTAssertEqual(transport.sent.count, 2)
         XCTAssertEqual(transport.sent.map(\.eventID), [event.eventID, event.eventID])
-        XCTAssertFalse(sender.disabled)
+        let disabled = await sender.disabled
+        XCTAssertFalse(disabled)
     }
 
     func test5xxRetryFailureDropsEvent() async {
@@ -63,7 +66,8 @@ final class AnalyticsSenderTests: XCTestCase {
 
         XCTAssertEqual(transport.sent.count, 2, "ровно один повтор")
         await XCTAssertEqualAsync(await sender.pendingCacheCount(), 0)
-        XCTAssertFalse(sender.disabled)
+        let disabled = await sender.disabled
+        XCTAssertFalse(disabled)
     }
 
     func testNetworkErrorCachesEventUntilNextSuccess() async {
@@ -101,7 +105,8 @@ final class AnalyticsSenderTests: XCTestCase {
         await sender.send(Self.event())
 
         await XCTAssertEqualAsync(await sender.pendingCacheCount(), 3)
-        XCTAssertFalse(sender.pendingCacheEventIDs.contains(oldest.eventID), "переполнение отбрасывает старейшее")
+        let cacheIDs = await sender.pendingCacheEventIDs
+        XCTAssertFalse(cacheIDs.contains(oldest.eventID), "переполнение отбрасывает старейшее")
     }
 
     func testDisabledByServerClearsCache() async {
@@ -118,7 +123,8 @@ final class AnalyticsSenderTests: XCTestCase {
 
         await sender.send(Self.event())
 
-        XCTAssertTrue(sender.disabled)
+        let disabled = await sender.disabled
+        XCTAssertTrue(disabled)
         await XCTAssertEqualAsync(await sender.pendingCacheCount(), 0)
     }
 
@@ -153,6 +159,7 @@ final class MockTransport: IQAnalyticsTransport {
 
     private var script: [Outcome]
     private(set) var sent: [IQAnalyticsEvent] = []
+    private(set) var delivered: [IQAnalyticsEvent] = []
 
     init(script: [Outcome]) {
         self.script = script
@@ -165,6 +172,7 @@ final class MockTransport: IQAnalyticsTransport {
         }
         switch script.removeFirst() {
         case .success:
+            delivered.append(event)
             return .success(())
         case .failure(let error):
             return .failure(error)
@@ -175,5 +183,64 @@ final class MockTransport: IQAnalyticsTransport {
 extension IQAnalyticsSender {
     func pendingCacheCount() async -> Int {
         pendingCacheEventIDs.count
+    }
+}
+
+final class AnalyticsSenderConcurrencyTests: XCTestCase {
+
+    func testConcurrentNetworkFailuresCacheAllEventsWithoutCorruption() async {
+        let transport = MockTransport(script: [])
+        let sender = IQAnalyticsSender(transport: transport, delay: { _ in })
+
+        await withTaskGroup(of: Void.self) { group in
+            for index in 0..<10 {
+                group.addTask {
+                    await sender.send(Self.event(number: index))
+                }
+            }
+        }
+
+        let cached = await sender.pendingCacheCount()
+        XCTAssertEqual(cached, IQAnalyticsSender.maxCachedEvents, "переполнение отбрасывает старейшие, кэш не ломается")
+    }
+
+    func testConcurrentFlushesDoNotDuplicateCachedEvents() async {
+        let networkFailure = IQAnalyticsSendError(statusCode: nil, code: nil)
+        let transport = MockTransport(script: [
+            .failure(networkFailure), .failure(networkFailure), .failure(networkFailure),
+            .success, .success, .success
+        ])
+        let sender = IQAnalyticsSender(transport: transport, delay: { _ in })
+
+        await sender.send(Self.event(number: 0))
+        await sender.send(Self.event(number: 1))
+        await sender.send(Self.event(number: 2))
+        let cached = await sender.pendingCacheCount()
+        XCTAssertEqual(cached, 3)
+
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await sender.flushCache() }
+            group.addTask { await sender.flushCache() }
+        }
+
+        XCTAssertEqual(transport.sent.count, 6, "3 начальные попытки + 3 из флеша, без дублей флеша")
+        XCTAssertEqual(transport.delivered.count, 3, "все кэшированные доставлены ровно по одному разу")
+        let deliveredIDs = transport.delivered.map(\.eventID)
+        XCTAssertEqual(Set(deliveredIDs).count, 3)
+        let remaining = await sender.pendingCacheCount()
+        XCTAssertEqual(remaining, 0)
+    }
+
+    private static func event(number: Int) -> IQAnalyticsEvent {
+        IQAnalyticsEvent.make(
+            type: .screenView,
+            channelAuth: IQClientAuth(client: IQClient(id: number, name: nil, integrationID: nil,
+                                                       personalManagerID: nil, personalManagerGroupID: nil,
+                                                       multiChatsInfo: nil, projectID: 1, crmClientID: "101",
+                                                       channelID: nil),
+                                      session: nil, analytics: nil),
+            source: nil,
+            payload: nil
+        )
     }
 }

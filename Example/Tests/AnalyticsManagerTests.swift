@@ -6,7 +6,7 @@ final class AnalyticsManagerTests: XCTestCase {
     func testNoAnalyticsBlockSendsNothing() async {
         let manager = Self.makeManager()
         let transportA = MockTransport(script: [])
-        manager.activate(
+        await manager.activate(
             results: [Self.result(channel: "a", config: nil)],
             source: nil,
             transports: ["a": transportA]
@@ -20,7 +20,7 @@ final class AnalyticsManagerTests: XCTestCase {
     func testDisabledConfigSendsNothing() async {
         let manager = Self.makeManager()
         let transport = MockTransport(script: [])
-        manager.activate(
+        await manager.activate(
             results: [Self.result(channel: "a", config: #"{"enabled":false,"events":["screen_view"]}"#)],
             source: nil,
             transports: ["a": transport]
@@ -35,7 +35,7 @@ final class AnalyticsManagerTests: XCTestCase {
         let manager = Self.makeManager()
         let transportA = MockTransport(script: [.success])
         let transportB = MockTransport(script: [.success])
-        manager.activate(
+        await manager.activate(
             results: [
                 Self.result(channel: "a", config: #"{"enabled":true,"events":["screen_view"]}"#),
                 Self.result(channel: "b", config: #"{"enabled":true,"events":["screen_view"]}"#)
@@ -53,7 +53,7 @@ final class AnalyticsManagerTests: XCTestCase {
     func testTrackGatedWhenOffline() async {
         let manager = Self.makeManager(online: false)
         let transport = MockTransport(script: [])
-        manager.activate(
+        await manager.activate(
             results: [Self.result(channel: "a", config: #"{"enabled":true,"events":["screen_view"]}"#)],
             source: nil,
             transports: ["a": transport]
@@ -71,7 +71,7 @@ final class AnalyticsManagerTests: XCTestCase {
             .failure(.init(statusCode: 403, code: "forbidden"))
         ])
         let transportB = MockTransport(script: [.success, .success])
-        manager.activate(
+        await manager.activate(
             results: [
                 Self.result(channel: "a", projectID: 1, config: Self.fullConfig),
                 Self.result(channel: "b", projectID: 2, config: Self.fullConfig)
@@ -100,12 +100,12 @@ final class AnalyticsManagerTests: XCTestCase {
             (transportA.sent + transportB.sent).filter { $0.event == .sourceAttribution }.count
         }
 
-        manager.activate(results: results, source: "push", transports: ["a": transportA, "b": transportB])
+        await manager.activate(results: results, source: "push", transports: ["a": transportA, "b": transportB])
 
         let firstSent = await waitUntil { attributionTotal() == 1 }
         XCTAssertTrue(firstSent, "source_attribution уходит один раз на проект")
 
-        manager.activate(results: results, source: "push", transports: ["a": transportA, "b": transportB])
+        await manager.activate(results: results, source: "push", transports: ["a": transportA, "b": transportB])
 
         let secondSent = await waitUntil { attributionTotal() == 2 }
         XCTAssertTrue(
@@ -129,7 +129,7 @@ final class AnalyticsManagerTests: XCTestCase {
     func testSourceAttributionSkippedWithoutSource() async {
         let manager = Self.makeManager()
         let transport = MockTransport(script: [.success])
-        manager.activate(
+        await manager.activate(
             results: [Self.result(channel: "a", config: Self.fullConfig)],
             source: nil,
             transports: ["a": transport]
@@ -143,16 +143,17 @@ final class AnalyticsManagerTests: XCTestCase {
         let disabledTransport = MockTransport(script: [.failure(.init(statusCode: 403, code: "forbidden"))])
         let freshTransport = MockTransport(script: [.success])
 
-        manager.activate(
+        await manager.activate(
             results: [Self.result(channel: "a", config: Self.fullConfig)],
             source: nil,
             transports: ["a": disabledTransport]
         )
         await manager.track(channel: "a", type: .screenView, payload: nil)
-        XCTAssertFalse(manager.allows(channel: "a", type: .screenView), "403 отключил канал до конца сессии")
+        let allows = await manager.allows(channel: "a", type: .screenView)
+        XCTAssertFalse(allows, "403 отключил канал до конца сессии")
 
-        manager.reset()
-        manager.activate(
+        await manager.reset()
+        await manager.activate(
             results: [Self.result(channel: "a", config: Self.fullConfig)],
             source: nil,
             transports: ["a": freshTransport]

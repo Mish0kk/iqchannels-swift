@@ -1400,7 +1400,7 @@ extension IQChannelsManager {
 extension IQChannelsManager {
     
     private func clearAuth(){
-        analytics.reset()
+        Task { await analytics.reset() }
         networkManagers.forEach { (key, _) in
             networkManagers[key]?.token = nil
         }
@@ -1417,7 +1417,9 @@ extension IQChannelsManager {
                 networkManagers[channel].map { (channel, IQAnalyticsNetworkTransport(networkManager: $0) as IQAnalyticsTransport) }
             }
         )
-        analytics.activate(results: results, source: config.source, transports: transports)
+        Task {
+            await analytics.activate(results: results, source: config.source, transports: transports)
+        }
     }
     
     func auth(_ loginType: IQLoginType, _ completion: (() -> Void)?) {
