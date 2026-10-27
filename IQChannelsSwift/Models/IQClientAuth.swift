@@ -10,5 +10,6 @@ import Foundation
 struct IQClientAuth: Decodable {
     var client: IQClient?
     var session: IQClientSession?
+    var analytics: IQAnalyticsConfig?
 }
 

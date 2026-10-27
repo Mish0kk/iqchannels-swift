@@ -14,6 +14,21 @@ struct IQClient: Equatable, Codable {
     var personalManagerID: Int?
     var personalManagerGroupID: Int?
     var multiChatsInfo: IQMultiChatsInfo?
+    var projectID: Int?
+    var crmClientID: String?
+    var channelID: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case integrationID
+        case personalManagerID
+        case personalManagerGroupID
+        case multiChatsInfo
+        case projectID
+        case crmClientID = "cRMClientID"
+        case channelID
+    }
     
     var canAccessPersonalManager: Bool {
 //        (personalManagerID != nil || personalManagerGroupID != nil) && (multiChatsInfo?.enableForPersonalManagers ?? false)

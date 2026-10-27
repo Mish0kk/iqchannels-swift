@@ -35,10 +35,12 @@ struct IQMessage: Codable, Identifiable, Equatable {
     var singleChoices: [IQSingleChoice]?
     var product: IQProduct?
     var transferToChannel: IQTransferToChannel?
-    
+    var mailingMessageID: Int?
+
     enum CodingKeys: String, CodingKey {
         case messageID = "id"
         case isRead = "read"
+        case mailingMessageID
         case payload, text, userID, clientID, fileID, fileIDs, chatID, createdAt, localID, isDropDown, singleChoices, product, actions, replyToMessageID, botpressPayload, disableFreeText, ratingID, author, transferToChannel
     }
 
@@ -78,6 +80,10 @@ struct IQMessage: Codable, Identifiable, Equatable {
     
     var isPendingRatingMessage: Bool {
         return rating?.state == .pending || rating?.state == .poll
+    }
+
+    var isMailingOffer: Bool {
+        mailingMessageID != nil
     }
     
     var isMessageReplied: Bool {
