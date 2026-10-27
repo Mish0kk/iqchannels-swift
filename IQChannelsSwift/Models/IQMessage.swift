@@ -16,6 +16,7 @@ struct IQMessage: Codable, Identifiable, Equatable {
     var fileID: String?
     var fileIDs: [String]?
     var chatID: Int?
+    var channelID: Int?
     var createdAt: Int?
     var userID: Int?
     var clientID: Int?
@@ -41,7 +42,7 @@ struct IQMessage: Codable, Identifiable, Equatable {
         case messageID = "id"
         case isRead = "read"
         case mailingMessageID
-        case payload, text, userID, clientID, fileID, fileIDs, chatID, createdAt, localID, isDropDown, singleChoices, product, actions, replyToMessageID, botpressPayload, disableFreeText, ratingID, author, transferToChannel
+        case payload, text, userID, clientID, fileID, fileIDs, chatID, channelID, createdAt, localID, isDropDown, singleChoices, product, actions, replyToMessageID, botpressPayload, disableFreeText, ratingID, author, transferToChannel
     }
 
     //MARK: - Custom

@@ -1,16 +1,39 @@
 import SwiftUI
 
+struct OfferFrameReport: Equatable {
+    let messageID: Int
+    let frame: CGRect
+}
+
+struct OfferFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [OfferFrameReport] = []
+
+    static func reduce(value: inout [OfferFrameReport], nextValue: () -> [OfferFrameReport]) {
+        value += nextValue()
+    }
+}
+
+struct ScrollViewportSizePreferenceKey: PreferenceKey {
+    static var defaultValue: CGSize = .zero
+
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        value = nextValue()
+    }
+}
+
 struct ChatMessagesView: View {
-    
+
     // MARK: - PROPERTIES
     @EnvironmentObject var viewModel: IQChatDetailViewModel
     @Environment(\.colorScheme) var colorScheme
-    
+
     weak var delegate: ChatDetailViewDelegate?
-    
+
     @State private var keyboardShown: Bool = false
     @State private var isScrollDownVisible: Bool = false
     @State private var isMenuVisibleMessage: IQMessage? = nil
+    @State private var viewportSize: CGSize = .zero
+    @State private var visibleOfferIDs: Set<Int> = []
     
     var loaderColor: Color {
         return IQStyle.getColor(theme: IQStyle.model?.chat?.chatLoader) ?? Color(hex: "555555")
@@ -40,6 +63,7 @@ struct ChatMessagesView: View {
                                     getMenuView()
                                         .zIndex(200)
                                 }
+
                                 
                                 if let rating = message.rating {
                                     if(message.isPendingRatingMessage){
@@ -110,6 +134,7 @@ struct ChatMessagesView: View {
                             }
                         }
                         .modifier(FlippedUpsideDown())
+                        .background(offerVisibilityReader(message: message))
                     }
                 }
                 .padding([.bottom, .horizontal], 16)
@@ -120,6 +145,11 @@ struct ChatMessagesView: View {
             }
             .clipped()
             .coordinateSpace(name: "scroll")
+            .background(
+                GeometryReader { geo in
+                    Color.clear.preference(key: ScrollViewportSizePreferenceKey.self, value: geo.size)
+                }
+            )
             .modifier(FlippedUpsideDown())
             .modifier(HideKeyboardOnDragGesture())
             .modifier(HideKeyboardOnTapGesture(shouldAdd: keyboardShown))
@@ -143,6 +173,12 @@ struct ChatMessagesView: View {
         }
         .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
             isScrollDownVisible = value.y < -100
+        }
+        .onPreferenceChange(ScrollViewportSizePreferenceKey.self) { size in
+            viewportSize = size
+        }
+        .onPreferenceChange(OfferFramePreferenceKey.self) { reports in
+            handleOfferVisibility(reports)
         }
         .onTapGesture {
             isMenuVisibleMessage = nil
@@ -262,6 +298,41 @@ struct ChatMessagesView: View {
     }
     
     // MARK: - METHODS
+    @ViewBuilder
+    private func offerVisibilityReader(message: IQMessage) -> some View {
+        if message.isMailingOffer {
+            GeometryReader { geo in
+                Color.clear.preference(
+                    key: OfferFramePreferenceKey.self,
+                    value: [OfferFrameReport(messageID: message.messageID, frame: geo.frame(in: .named("scroll")))]
+                )
+            }
+        }
+    }
+
+    private func handleOfferVisibility(_ reports: [OfferFrameReport]) {
+        let viewport = CGRect(origin: .zero, size: viewportSize)
+        guard viewportSize.width > 0, viewportSize.height > 0 else { return }
+
+        let currentlyVisible = Set(reports.compactMap { report -> Int? in
+            guard report.frame.height > 0 else { return nil }
+            let visibleHeight = report.frame.intersection(viewport).height
+            return visibleHeight / report.frame.height >= 0.5 ? report.messageID : nil
+        })
+
+        for id in currentlyVisible.subtracting(visibleOfferIDs) {
+            if let message = viewModel.messages.first(where: { $0.messageID == id }) {
+                delegate?.onOfferVisibilityChanged(message: message, visible: true)
+            }
+        }
+        for id in visibleOfferIDs.subtracting(currentlyVisible) {
+            if let message = viewModel.messages.first(where: { $0.messageID == id }) {
+                delegate?.onOfferVisibilityChanged(message: message, visible: false)
+            }
+        }
+        visibleOfferIDs = currentlyVisible
+    }
+
     private func isGroupStart(_ index: Int) -> Bool {
         guard index < viewModel.messages.count - 1 else { return true }
         

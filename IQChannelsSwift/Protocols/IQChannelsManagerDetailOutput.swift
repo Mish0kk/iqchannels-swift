@@ -28,4 +28,7 @@ protocol IQChannelsManagerDetailOutput {
     func detailController(didPick results: [PHPickerResult])
     func detailControllerSelectLanguage(didSelect language: IQLanguage)
     func detailController(didChangeSegment message: IQMessage)
+    func detailControllerOfferViewabilityThresholdMs() -> Int?
+    func detailController(didReadOffer message: IQMessage, visibleDurationMs: Int)
+    func detailController(didSkipOffer message: IQMessage, reason: IQAnalyticsSkipReason)
 }

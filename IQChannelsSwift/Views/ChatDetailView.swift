@@ -8,6 +8,7 @@ protocol ChatDetailViewDelegate: AnyObject {
     func onProductTap(_ product: IQProductTap)
     func onActionTap(_ action: IQAction)
     func onMessageAppear(with messageId: Int)
+    func onOfferVisibilityChanged(message: IQMessage, visible: Bool)
     func onSendMessage(_ text: String)
     func onResendMessage(_ message: IQMessage)
     func onCancelUpload(_ message: IQMessage)

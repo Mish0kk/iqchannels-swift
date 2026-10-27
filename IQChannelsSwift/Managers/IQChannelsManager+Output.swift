@@ -112,4 +112,33 @@ extension IQChannelsManager: IQChannelsManagerDetailOutput {
     func detailController(didChangeSegment message: IQMessage) {
         changeSegment(message)
     }
+
+    func detailControllerOfferViewabilityThresholdMs() -> Int? {
+        guard let channel = selectedChat?.auth.channel else { return nil }
+        return analytics.thresholdMs(channel: channel)
+    }
+
+    func detailController(didReadOffer message: IQMessage, visibleDurationMs: Int) {
+        guard let channel = selectedChat?.auth.channel else { return }
+        let payload = IQAnalyticsEvent.offerReadPayload(
+            messageID: message.messageID,
+            channelID: message.channelID ?? message.chatID,
+            visibleDurationMs: visibleDurationMs
+        )
+        Task {
+            await analytics.track(channel: channel, type: .offerRead, payload: payload)
+        }
+    }
+
+    func detailController(didSkipOffer message: IQMessage, reason: IQAnalyticsSkipReason) {
+        guard let channel = selectedChat?.auth.channel else { return }
+        let payload = IQAnalyticsEvent.offerSkippedPayload(
+            messageID: message.messageID,
+            channelID: message.channelID ?? message.chatID,
+            reason: reason
+        )
+        Task {
+            await analytics.track(channel: channel, type: .offerSkipped, payload: payload)
+        }
+    }
 }
