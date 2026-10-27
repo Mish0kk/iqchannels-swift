@@ -79,9 +79,7 @@ final class AnalyticsScreenEventsTests: XCTestCase {
         XCTAssertNil(payload["channel_id"])
     }
 
-    // MARK: - Helpers
-
-    private static func result(channel: String) -> (channel: String, auth: IQClientAuth) {
+        private static func result(channel: String) -> (channel: String, auth: IQClientAuth) {
         let configData = Data(#"{"enabled":true,"events":["channel_enter"]}"#.utf8)
         let analytics = try? IQJSONDecoder().decode(IQAnalyticsConfig.self, from: configData)
         let client = IQClient(

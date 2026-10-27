@@ -163,9 +163,7 @@ final class AnalyticsManagerTests: XCTestCase {
         XCTAssertEqual(freshTransport.sent.count, 1, "после reset и новой активации канал снова шлёт")
     }
 
-    // MARK: - Helpers
-
-    private static let fullConfig =
+        private static let fullConfig =
         #"{"enabled":true,"events":["screen_view","channel_enter","source_attribution""#
         + #","offer_read","offer_skipped","link_click"],"viewability_threshold_ms":1500}"#
 
@@ -184,5 +182,69 @@ final class AnalyticsManagerTests: XCTestCase {
             projectID: projectID, crmClientID: "101", channelID: 42
         )
         return (channel, IQClientAuth(client: client, session: nil, analytics: analytics))
+    }
+}
+
+final class AnalyticsManagerFixTests: XCTestCase {
+
+    private static let fullConfig =
+        #"{"enabled":true,"events":["screen_view","channel_enter","source_attribution""#
+        + #","offer_read","offer_skipped","link_click"],"viewability_threshold_ms":1500}"#
+
+    private static func result(
+        channel: String, projectID: Int = 1, config: String?
+    ) -> (channel: String, auth: IQClientAuth) {
+        let data = config.flatMap { Data($0.utf8) }
+        let analytics = data.flatMap { try? IQJSONDecoder().decode(IQAnalyticsConfig.self, from: $0) }
+        let client = IQClient(
+            id: 1, name: nil, integrationID: nil, personalManagerID: nil,
+            personalManagerGroupID: nil, multiChatsInfo: nil,
+            projectID: projectID, crmClientID: "101", channelID: 42
+        )
+        return (channel, IQClientAuth(client: client, session: nil, analytics: analytics))
+    }
+
+    func testTrackAllGatedWhenOffline() async {
+        let manager = IQAnalyticsManager(isOnline: { false })
+        let transport = MockTransport(script: [.success])
+        await manager.activate(
+            results: [Self.result(channel: "a", config: Self.fullConfig)],
+            source: nil,
+            transports: ["a": transport]
+        )
+
+        await manager.trackAll(type: .screenView, payload: nil)
+
+        XCTAssertTrue(transport.sent.isEmpty, "screen_view офлайн не генерируется")
+    }
+
+    func testTrackAllSendsOnline() async {
+        let manager = IQAnalyticsManager(isOnline: { true })
+        let transport = MockTransport(script: [.success])
+        await manager.activate(
+            results: [Self.result(channel: "a", config: Self.fullConfig)],
+            source: nil,
+            transports: ["a": transport]
+        )
+
+        await manager.trackAll(type: .screenView, payload: nil)
+
+        XCTAssertEqual(transport.sent.count, 1)
+    }
+
+    func testActivateResetsChannelEnterFlag() async {
+        let manager = IQAnalyticsManager(isOnline: { true })
+        let transport = MockTransport(script: [.success, .success])
+        let results = [Self.result(channel: "a", config: Self.fullConfig)]
+
+        await manager.activate(results: results, source: nil, transports: ["a": transport])
+        await manager.trackChannelEnterOnce(channel: "a", payload: nil)
+        await manager.activate(results: results, source: nil, transports: ["a": transport])
+        await manager.trackChannelEnterOnce(channel: "a", payload: nil)
+
+        XCTAssertEqual(
+            transport.sent.filter { $0.event == .channelEnter }.count, 2,
+            "новая активация (логин-сессия) снова фиксирует вход"
+        )
     }
 }

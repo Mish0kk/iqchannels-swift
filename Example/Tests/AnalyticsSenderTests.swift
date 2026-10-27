@@ -128,9 +128,7 @@ final class AnalyticsSenderTests: XCTestCase {
         await XCTAssertEqualAsync(await sender.pendingCacheCount(), 0)
     }
 
-    // MARK: - Helpers
-
-    private static func makeSender(_ transport: IQAnalyticsTransport) -> IQAnalyticsSender {
+        private static func makeSender(_ transport: IQAnalyticsTransport) -> IQAnalyticsSender {
         IQAnalyticsSender(transport: transport, delay: { _ in })
     }
 

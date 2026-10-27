@@ -18,10 +18,10 @@ class IQChatDetailViewController: IQViewController {
     
     private var cancellables = Set<AnyCancellable>()
 
-    private var offerTracker: IQAnalyticsViewabilityTracker?
-    private var offerChannel: String?
+    private let offerLifecycle = IQAnalyticsOfferTrackerLifecycle()
     private var offerTickTimer: Timer?
     private var appBackgroundObserver: NSObjectProtocol?
+    private var appActiveObserver: NSObjectProtocol?
     
     private lazy var titleStackView: UIStackView = {
         let stackView: UIStackView = .init(arrangedSubviews: [titleLabel, statusView])
@@ -379,9 +379,24 @@ class IQChatDetailViewController: IQViewController {
         }
     }
     
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        viewModel.offerVisibilityReset.send(())
+
+        if appActiveObserver == nil {
+            appActiveObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.viewModel.offerVisibilityReset.send(())
+            }
+        }
+    }
+
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        offerTracker?.flush(reason: .leftChannel)
+        offerLifecycle.tracker?.flush(reason: .leftChannel)
     }
 
     deinit {
@@ -389,33 +404,40 @@ class IQChatDetailViewController: IQViewController {
         if let appBackgroundObserver {
             NotificationCenter.default.removeObserver(appBackgroundObserver)
         }
+        if let appActiveObserver {
+            NotificationCenter.default.removeObserver(appActiveObserver)
+        }
     }
 
     // MARK: - PRIVATE METHODS
     private func ensureOfferTracking() {
-        guard offerTracker == nil else { return }
         Task { @MainActor [weak self] in
-            guard let self, self.offerTracker == nil,
-                  let context = await self.output.detailControllerOfferTrackingContext() else { return }
-            self.setupOfferTracking(channel: context.channel, thresholdMs: context.thresholdMs)
+            guard let self else { return }
+            let context = await self.output.detailControllerOfferTrackingContext()
+            switch self.offerLifecycle.refresh(context: context) {
+            case .recreated(let tracker):
+                self.setupOfferTracking(tracker)
+            case .unchanged, .none:
+                break
+            }
         }
     }
 
-    private func setupOfferTracking(channel: String, thresholdMs: Int) {
-        guard thresholdMs > 0 else { return }
-
-        offerChannel = channel
-        let tracker = IQAnalyticsViewabilityTracker(thresholdMs: thresholdMs)
+    private func setupOfferTracking(_ tracker: IQAnalyticsViewabilityTracker) {
         tracker.onRead = { [weak self] messageID, durationMs in
             self?.trackOffer(messageID: messageID, readWithDurationMs: durationMs)
         }
         tracker.onSkipped = { [weak self] messageID, reason in
             self?.trackOffer(messageID: messageID, skippedWithReason: reason)
         }
-        offerTracker = tracker
 
+        offerTickTimer?.invalidate()
         offerTickTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak tracker] _ in
             tracker?.tick()
+        }
+        if let appBackgroundObserver {
+            NotificationCenter.default.removeObserver(appBackgroundObserver)
+            self.appBackgroundObserver = nil
         }
         appBackgroundObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didEnterBackgroundNotification,
@@ -427,7 +449,7 @@ class IQChatDetailViewController: IQViewController {
     }
 
     private func trackOffer(messageID: Int, readWithDurationMs durationMs: Int? = nil, skippedWithReason reason: IQAnalyticsSkipReason? = nil) {
-        guard let channel = offerChannel,
+        guard let channel = offerLifecycle.channel,
               let message = viewModel.messages.first(where: { $0.messageID == messageID }) else { return }
         if let durationMs {
             output.detailController(didReadOffer: message, channel: channel, visibleDurationMs: durationMs)
@@ -555,9 +577,9 @@ extension IQChatDetailViewController: ChatDetailViewDelegate {
     func onOfferVisibilityChanged(message: IQMessage, visible: Bool) {
         guard message.isMailingOffer else { return }
         if visible {
-            offerTracker?.show(id: message.messageID)
+            offerLifecycle.tracker?.show(id: message.messageID)
         } else {
-            offerTracker?.hide(id: message.messageID, reason: .scrolledPast)
+            offerLifecycle.tracker?.hide(id: message.messageID, reason: .scrolledPast)
         }
     }
 

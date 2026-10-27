@@ -33,7 +33,7 @@ struct ChatMessagesView: View {
     @State private var isScrollDownVisible: Bool = false
     @State private var isMenuVisibleMessage: IQMessage? = nil
     @State private var viewportSize: CGSize = .zero
-    @State private var visibleOfferIDs: Set<Int> = []
+    @State private var offerGate = IQAnalyticsVisibilityGate()
     @State private var lastOfferReports: [OfferFrameReport] = []
     
     var loaderColor: Color {
@@ -185,6 +185,10 @@ struct ChatMessagesView: View {
             lastOfferReports = reports
             handleOfferVisibility(reports)
         }
+        .onReceive(viewModel.offerVisibilityReset) { _ in
+            offerGate.reset()
+            handleOfferVisibility(lastOfferReports)
+        }
         .onTapGesture {
             isMenuVisibleMessage = nil
         }
@@ -326,17 +330,17 @@ struct ChatMessagesView: View {
             return visibleHeight / report.frame.height >= 0.5 ? report.messageID : nil
         })
 
-        for id in currentlyVisible.subtracting(visibleOfferIDs) {
+        let diff = offerGate.update(currentlyVisible: currentlyVisible)
+        for id in diff.shown {
             if let message = viewModel.messages.first(where: { $0.messageID == id }) {
                 delegate?.onOfferVisibilityChanged(message: message, visible: true)
             }
         }
-        for id in visibleOfferIDs.subtracting(currentlyVisible) {
+        for id in diff.hidden {
             if let message = viewModel.messages.first(where: { $0.messageID == id }) {
                 delegate?.onOfferVisibilityChanged(message: message, visible: false)
             }
         }
-        visibleOfferIDs = currentlyVisible
     }
 
     private func isGroupStart(_ index: Int) -> Bool {

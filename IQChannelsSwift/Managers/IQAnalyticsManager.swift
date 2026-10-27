@@ -56,6 +56,7 @@ actor IQAnalyticsManager {
         }
         self.source = source
         sourceAttributionSent = false
+        channelEnterSent = false
         await trackSourceAttributionIfNeeded()
     }
 
@@ -91,6 +92,7 @@ actor IQAnalyticsManager {
     }
 
     func trackAll(type: IQAnalyticsEventType, payload: [String: IQAnalyticsJSONValue]?) async {
+        guard isOnline() else { return }
         var seenProjects = Set<Int>()
         for (channel, item) in channels {
             guard item.config?.allows(type) == true else { continue }
