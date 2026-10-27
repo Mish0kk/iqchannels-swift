@@ -163,6 +163,11 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
         
         return response.error
     }
+
+    func sendAnalyticsEvent(_ event: IQAnalyticsEvent) async -> ResponseCallback<IQResult<IQEmptyResponse>> {
+        let path = "/analytics/events"
+        return await post(path, body: event, responseType: IQEmptyResponse.self)
+    }
     
     func getFile(id: String) async throws -> IQFile? {
         let path = "/files/get_file/\(id)"

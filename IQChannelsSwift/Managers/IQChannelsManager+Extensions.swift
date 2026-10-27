@@ -1399,6 +1399,7 @@ extension IQChannelsManager {
 extension IQChannelsManager {
     
     private func clearAuth(){
+        analytics.reset()
         networkManagers.forEach { (key, _) in
             networkManagers[key]?.token = nil
         }
@@ -1407,6 +1408,15 @@ extension IQChannelsManager {
         state = .loggedOut
         loginType = nil
         listViewModel = nil
+    }
+
+    private func activateAnalytics(results: [AuthResult]) {
+        let transports: [String: IQAnalyticsTransport] = Dictionary(
+            uniqueKeysWithValues: results.compactMap { channel, _ in
+                networkManagers[channel].map { (channel, IQAnalyticsNetworkTransport(networkManager: $0) as IQAnalyticsTransport) }
+            }
+        )
+        analytics.activate(results: results, source: config.source, transports: transports)
     }
     
     func auth(_ loginType: IQLoginType, _ completion: (() -> Void)?) {
@@ -1493,6 +1503,7 @@ extension IQChannelsManager {
         authResults = results
         authAttempt = 0
         state = .authenticated
+        activateAnalytics(results: results)
         completion?()
     }
     
@@ -1527,6 +1538,7 @@ extension IQChannelsManager: IQNetworkStatusManagerDelegate {
             
             if !authResults.isEmpty {
                 state = .authenticated
+                Task { await self.analytics.flushCaches() }
                 await loadMessagesAndMerge()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
                     self?.uploadUnsentMessages()
