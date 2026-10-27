@@ -11,6 +11,7 @@ extension NSError {
     
     static let IQErrorDomain = "ru.iqstore.iqchannels"
     static let IQErrorUserInfoKey = "ru.iqstore.error"
+    static let IQErrorHTTPStatusCodeKey = "ru.iqstore.http_status_code"
 
     static let IQErrorAppError = 2
     static let IQErrorClientError = 3
@@ -27,6 +28,17 @@ extension NSError {
     class func clientError(_ text: String? = nil) -> NSError {
         let descriptionText = text ?? NSLocalizedString("Client error", comment: "")
         return NSError(domain: IQErrorDomain, code: IQErrorClientError, userInfo: [NSLocalizedDescriptionKey: descriptionText])
+    }
+
+    class func httpError(statusCode: Int, iqError: IQError?) -> NSError {
+        var userInfo: [String: Any] = [
+            NSLocalizedDescriptionKey: HTTPURLResponse.localizedString(forStatusCode: statusCode),
+            NSError.IQErrorHTTPStatusCodeKey: statusCode
+        ]
+        if let iqError {
+            userInfo[NSError.IQErrorUserInfoKey] = iqError
+        }
+        return NSError(domain: IQErrorDomain, code: IQErrorClientError, userInfo: userInfo)
     }
     
     class func failedToParseModel(_ model: Any.Type) -> NSError {

@@ -251,8 +251,8 @@ extension IQNetworkManager: URLSessionDelegate {
         }
         
         guard (200..<300).contains(httpResponse.statusCode) else {
-            let text = HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)
-            let error = NSError.clientError(text)
+            let iqError = responseError(from: data)
+            let error = NSError.httpError(statusCode: httpResponse.statusCode, iqError: iqError)
             return .init(error: error)
         }
         
@@ -295,5 +295,10 @@ extension IQNetworkManager: URLSessionDelegate {
             return .init(error: error)
         }
     }
-    
+
+    private func responseError(from data: Data?) -> IQError? {
+        guard let data, !data.isEmpty else { return nil }
+        return (try? IQJSONDecoder().decode(IQResponse<IQEmptyResponse>.self, from: data))?.error
+    }
+
 }
