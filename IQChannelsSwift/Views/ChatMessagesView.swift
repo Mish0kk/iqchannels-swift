@@ -42,6 +42,7 @@ struct ChatMessagesView: View {
     
     // MARK: - BODY
     var body: some View {
+        GeometryReader { rootGeo in
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 8) {
@@ -148,11 +149,6 @@ struct ChatMessagesView: View {
             }
             .clipped()
             .coordinateSpace(name: "scroll")
-            .background(
-                GeometryReader { geo in
-                    Color.clear.preference(key: ScrollViewportSizePreferenceKey.self, value: geo.size)
-                }
-            )
             .modifier(FlippedUpsideDown())
             .modifier(HideKeyboardOnDragGesture())
             .modifier(HideKeyboardOnTapGesture(shouldAdd: keyboardShown))
@@ -177,7 +173,10 @@ struct ChatMessagesView: View {
         .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
             isScrollDownVisible = value.y < -100
         }
-        .onPreferenceChange(ScrollViewportSizePreferenceKey.self) { size in
+        .onAppear {
+            viewportSize = rootGeo.size
+        }
+        .onChange(of: rootGeo.size) { size in
             viewportSize = size
             handleOfferVisibility(lastOfferReports)
         }
@@ -193,6 +192,7 @@ struct ChatMessagesView: View {
             isMenuVisibleMessage = nil
         }
         .animation(isScrollDownVisible || !viewModel.enableAnimMessages || viewModel.disableMessagesAnimation ? nil : .easeInOut(duration: 0.25), value: viewModel.messages)
+        }
     }
     
     // MARK: - VIEWS
