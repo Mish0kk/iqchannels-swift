@@ -183,7 +183,7 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         return view
     }()
     
-    let configuration: IQLibraryConfigurationProtocol = IQLibraryConfiguration()
+    var configuration: IQLibraryConfigurationProtocol = IQLibraryConfiguration()
     
     var selectedStyle: Data?
     var preFillMessages: IQPreFillMessages?
