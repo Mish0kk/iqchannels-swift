@@ -32,6 +32,7 @@ struct ChatMessagesView: View {
 
     @State private var keyboardShown: Bool = false
     @State private var isScrollDownVisible: Bool = false
+    @State private var isReadingHistory: Bool = false
     @State private var isMenuVisibleMessage: IQMessage? = nil
     @State private var viewportSize: CGSize = .zero
     @State private var offerGate = IQAnalyticsVisibilityGate()
@@ -166,11 +167,12 @@ struct ChatMessagesView: View {
                     proxy.scrollTo(messageUiId, anchor: .bottom)
                 }
             }
-            .animation(.spring(response: 0.5, dampingFraction: 0.6, blendDuration: 0.3), value: isScrollDownVisible)
-            .animation(.easeInOut, value: viewModel.isLoading)
+        .animation(.spring(response: 0.5, dampingFraction: 0.6, blendDuration: 0.3), value: isScrollDownVisible)
+        .animation(.easeInOut, value: viewModel.isLoading)
         }
         .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
             isScrollDownVisible = value.y < -100
+            isReadingHistory = value.y < -viewportSize.height / 2
         }
         .onAppear {
             viewportSize = rootGeo.size
@@ -190,7 +192,7 @@ struct ChatMessagesView: View {
         .onTapGesture {
             isMenuVisibleMessage = nil
         }
-        .animation(isScrollDownVisible || !viewModel.enableAnimMessages || viewModel.disableMessagesAnimation ? nil : .easeInOut(duration: 0.25), value: viewModel.messages)
+        .animation(isReadingHistory || !viewModel.enableAnimMessages ? nil : .easeInOut(duration: 0.25), value: viewModel.messages)
         }
     }
     

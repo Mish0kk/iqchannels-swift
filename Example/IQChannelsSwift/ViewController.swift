@@ -181,7 +181,19 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
     }()
     
     private var showBottomTypingBar = true
-    
+
+    @objc private func typingBarSwitchChanged(_ sender: UISwitch) {
+        showBottomTypingBar = sender.isOn
+    }
+
+    private lazy var advancedUnreadLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Непрочитанных сообщений: 0"
+        label.textColor = .black
+        label.numberOfLines = 0
+        return label
+    }()
+
     private lazy var typingBarSwitch: UISwitch = {
         let sw = UISwitch()
         sw.isOn = showBottomTypingBar

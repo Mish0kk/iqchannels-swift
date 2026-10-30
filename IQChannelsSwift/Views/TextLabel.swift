@@ -52,10 +52,11 @@ struct TextLabel: UIViewRepresentable {
             if let link = parent.linkRanges.first(where: { gesture.didTapAttributedTextInLabel(label: label, inRange: $0.1) }),
                let url = URL(string: link.0) {
                 if IQChannelsManager.shouldHandleLink(url.absoluteString) {
-                if let onLinkTap = parent.onLinkTap {
-                    onLinkTap(url)
-                } else {
-                    UIApplication.shared.open(url)
+                    if let onLinkTap = parent.onLinkTap {
+                        onLinkTap(url)
+                    } else {
+                        UIApplication.shared.open(url)
+                    }
                 }
             }
         }

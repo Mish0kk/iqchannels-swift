@@ -305,27 +305,17 @@ extension IQChannelsManager {
     }
 
     private func listenToEvents(){
-<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
         guard !authResults.isEmpty, let selectedChat else { return }
-        
+
         guard networkStatusManager.isReachable else {
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
                 self?.listenToEvents()
             }
             return
         }
-        
-        var query = IQListenEventsRequest(chatType: selectedChat.chatType)
-        for message in messages where message.eventID ?? 0 > query.lastEventID ?? 0 {
-            query.lastEventID = message.eventID
-        }
-        
-=======
-        guard !authResults.isEmpty, networkStatusManager.isReachable, let selectedChat else { return }
 
         let query = Self.eventsQuery(chatType: selectedChat.chatType)
 
->>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
         currentNetworkManager?.listenToEvents(request: query, onOpen: { [weak self] in
             self?.sendAttachmentsIfNeeded()
             self?.uploadUnsentMessages()
@@ -656,11 +646,7 @@ extension IQChannelsManager {
                 self.detailViewModel?.enableAnimMessages = true
             }
             
-<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
-            let message = IQMessage(text: "2.4.7", localID: nextLocalId(), clientID: selectedChat.auth.auth.client?.id)
-=======
             let message = IQMessage(text: IQChannelsVersion.current, localID: nextLocalId(), clientID: selectedChat.auth.auth.client?.id)
->>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
             
             messages.append(message)
             DispatchQueue.main.async {
@@ -1052,7 +1038,6 @@ extension IQChannelsManager {
         }
     }
     
-<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
     private func uploadUnsentMessages(attempt: Int = 0){
         guard !isRetryingUnsentMessages else { return }
         guard !unsentMessages.isEmpty else { return }
@@ -1060,15 +1045,6 @@ extension IQChannelsManager {
         isRetryingUnsentMessages = true
         
         let messages = unsentMessages.sorted(by: { $0.createdDate < $1.createdDate })
-=======
-    private func uploadUnsentMessages(){
-        guard !isUploadingUnsent, !unsentMessages.isEmpty else { return }
-        
-        isUploadingUnsent = true
-        let messages = unsentMessages
-            .sorted(by: { $0.createdDate < $1.createdDate })
-            .map { $0.withError(false) }
->>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
         Task {
             defer { isRetryingUnsentMessages = false }
             
@@ -1090,15 +1066,6 @@ extension IQChannelsManager {
             DispatchQueue.main.asyncAfter(deadline: .now() + nextDelay) { [weak self] in
                 self?.uploadUnsentMessages(attempt: attempt + 1)
             }
-<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
-=======
-            isUploadingUnsent = false
-            if !unsentMessages.isEmpty {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
-                    self?.uploadUnsentMessages()
-                }
-            }
->>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
         }
     }
     
@@ -1147,18 +1114,13 @@ extension IQChannelsManager {
         
         let newMessages = serverMessages
             .filter { indexOfMessage(messageID: $0.messageID) == nil }
-<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
             .filter { !mergedMessageIDs.contains($0.messageID) }
         
         if !newMessages.isEmpty || didMergePending {
-            var messages = updatedMessages
-=======
-        if !newMessages.isEmpty {
->>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
             DispatchQueue.main.async {
                 self.detailViewModel?.enableAnimMessages = true
             }
-            self.messages = Self.mergeMessages(self.messages, with: newMessages)
+            self.messages = Self.mergeMessages(updatedMessages, with: newMessages)
         }
         listenToEvents()
     }
@@ -1336,10 +1298,13 @@ extension IQChannelsManager {
             }
             
             let results = (result.result?.0 ?? []).filter { $0.hasValidPayload }
-            
+
             DispatchQueue.main.async {
                 self.detailViewModel?.enableAnimMessages = false
-                self.messages = results
+            }
+            let newMessages = results.filter { indexOfMessage(messageID: $0.messageID) == nil }
+            if !newMessages.isEmpty {
+                self.messages = Self.mergeMessages(self.messages, with: newMessages)
             }
         }
     }

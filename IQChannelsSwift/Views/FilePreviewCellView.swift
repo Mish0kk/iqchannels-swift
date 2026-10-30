@@ -229,7 +229,7 @@ struct FilePreviewCellView: View {
                             if #available(iOS 16.0, *) {
                                 TextLabel(text: cachedText.0,
                                           linkRanges: cachedText.1,
-                                          maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24))
+                                          maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24),
                                           onLinkTap: onLinkTap)
                                 .layoutPriority(1)
                                 .bold(isBold)
@@ -237,7 +237,7 @@ struct FilePreviewCellView: View {
                             } else {
                                 TextLabel(text: cachedText.0,
                                           linkRanges: cachedText.1,
-                                          maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24))
+                                          maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24),
                                           onLinkTap: onLinkTap)
                                 .layoutPriority(1)
                             }

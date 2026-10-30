@@ -7,7 +7,6 @@ final class UnsentRecoveryTests: XCTestCase {
         var token: String?
 
         var sendMessageResult: ((IQMessageForm) -> Error?)?
-        private let lock = NSLock()
         private(set) var sentForms: [IQMessageForm] = []
         private(set) var listenRequests: [IQListenEventsRequest] = []
         var onOpenHandler: (() -> Void)?
@@ -23,9 +22,7 @@ final class UnsentRecoveryTests: XCTestCase {
             onOpen: @escaping (() -> Void),
             callback: @escaping ResponseCallbackClosure<[IQChatEvent]>
         ) {
-            lock.lock()
             listenRequests.append(request)
-            lock.unlock()
             onOpenHandler = onOpen
         }
 
@@ -47,9 +44,7 @@ final class UnsentRecoveryTests: XCTestCase {
         func finishPoll(ratingId: Int, pollId: Int, rated: Bool) async -> Error? { nil }
         func uploadFile(file: DataFile, taskIdentifierCallback: TaskIdentifierCallback?) async -> ResponseCallback<IQFile> { .init() }
         func sendMessage(form: IQMessageForm) async -> Error? {
-            lock.lock()
             sentForms.append(form)
-            lock.unlock()
             return sendMessageResult?(form) ?? nil
         }
         func acceptProduct(form: IQProductForm) async -> Error? { nil }
@@ -59,6 +54,7 @@ final class UnsentRecoveryTests: XCTestCase {
         func clientsIntegrationAuth(credentials: String) async -> ResponseCallback<IQClientAuth> { .init() }
         func getSignupGreetingSettings() async -> ResponseCallback<IQGreetingSettings> { .init() }
         func setLanguage(languageCode: String) async -> Error? { nil }
+        func getAvailableLanguages() async -> ResponseCallback<[IQLanguage]> { .init() }
         func changeSegment(messageID: Int) async -> Error? { nil }
         func getAdvancedUnread(channels: [String]) async -> Error? { nil }
     }

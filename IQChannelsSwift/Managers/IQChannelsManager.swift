@@ -35,7 +35,7 @@ class IQChannelsManager: IQChannelsManagerProtocol {
         [listViewModel, detailViewModel].compactMap { $0 }
     }
     var unsentMessages = [IQMessage]()
-    var isUploadingUnsent = false
+    var isRetryingUnsentMessages = false
     var readMessages = Set<Int>()
     var authAttempt = 0
     var lastLocalID = 0

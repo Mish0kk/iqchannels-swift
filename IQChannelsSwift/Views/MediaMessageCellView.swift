@@ -247,7 +247,7 @@ struct MediaMessageCellView: View {
                         if let cachedText {
                             TextLabel(text: cachedText.0,
                                       linkRanges: cachedText.1,
-                                      maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24))
+                                      maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24),
                                       onLinkTap: onLinkTap)
                             .layoutPriority(1)
                             .padding(.horizontal, 12)

@@ -129,7 +129,7 @@ struct MultiFilesMessageCellView: View {
                             if #available(iOS 16.0, *) {
                                 TextLabel(text: cachedText.0,
                                           linkRanges: cachedText.1,
-                                          maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24))
+                                          maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24),
                                           onLinkTap: { [weak delegate] url in
                                               delegate?.onLinkTap(url: url, message: message)
                                           })
@@ -139,7 +139,7 @@ struct MultiFilesMessageCellView: View {
                             } else {
                                 TextLabel(text: cachedText.0,
                                           linkRanges: cachedText.1,
-                                          maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24))
+                                          maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24),
                                           onLinkTap: { [weak delegate] url in
                                               delegate?.onLinkTap(url: url, message: message)
                                           })
