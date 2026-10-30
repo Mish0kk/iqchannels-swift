@@ -939,7 +939,8 @@ extension IQChannelsManager {
     private func sendMessage(_ message: IQMessage, attempts: Int = 0) async {
         if (!message.error){
             if let index = messages.firstIndex(where: { $0.localID == message.localID }),
-               messages[index] != message {
+               messages[index] != message,
+               !messages[index].error {
                 messages[index] = message
             }
             DispatchQueue.main.async {
