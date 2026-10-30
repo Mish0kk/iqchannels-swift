@@ -12,8 +12,9 @@ class IQNetworkStatusManager {
     
     weak var delegate: IQNetworkStatusManagerDelegate?
     
-    private let monitor = NWPathMonitor()
+    private var monitor = NWPathMonitor()
     private let queue = DispatchQueue.global(qos: .userInteractive)
+    private var stuckPathWorkItem: DispatchWorkItem?
     
     var isReachable: Bool {
         status != .notReachable
@@ -26,10 +27,16 @@ class IQNetworkStatusManager {
     }
     
     deinit {
+        stuckPathWorkItem?.cancel()
         monitor.cancel()
     }
     
     private func startMonitoring() {
+        attachHandler()
+        monitor.start(queue: queue)
+    }
+    
+    private func attachHandler() {
         monitor.pathUpdateHandler = { [weak self] path in
             let status: IQNetworkStatus = path.status == .satisfied ? .reachable : .notReachable
             if self?.status != status {
@@ -38,8 +45,24 @@ class IQNetworkStatusManager {
             } else {
                 self?.status = status
             }
+            self?.scheduleStuckPathRecheck()
         }
-        monitor.start(queue: queue)
+    }
+    
+    // симулятор не всегда рассылает обновления пути при восстановлении интерфейса
+    private func scheduleStuckPathRecheck() {
+        stuckPathWorkItem?.cancel()
+        guard status == .notReachable else { return }
+        
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, self.status == .notReachable else { return }
+            self.monitor.cancel()
+            self.monitor = NWPathMonitor()
+            self.attachHandler()
+            self.monitor.start(queue: self.queue)
+        }
+        stuckPathWorkItem = workItem
+        queue.asyncAfter(deadline: .now() + 5, execute: workItem)
     }
     
 }
