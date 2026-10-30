@@ -51,8 +51,6 @@ Package.resolved
 # Xcode workspace settings
 **/*.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
 
-# Example app: local-only entitlements
-Example/IQChannelsSwift_ExampleRelease.entitlements
 
 # Carthage
 #
