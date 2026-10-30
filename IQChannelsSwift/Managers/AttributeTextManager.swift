@@ -24,6 +24,9 @@ final class AttributeTextManager {
         }
 
         var formattedMarkdown = markdown.replacingOccurrences(of: "\\\n", with: "\n")
+        formattedMarkdown = formattedMarkdown.replacingOccurrences(of: "\r\n", with: "\n")
+        formattedMarkdown = formattedMarkdown.replacingOccurrences(of: "\r", with: "\n")
+        formattedMarkdown = formattedMarkdown.replacingOccurrences(of: "\n", with: "<br>")
 
         // MARK: - Base font
 
@@ -80,7 +83,9 @@ final class AttributeTextManager {
             attributedString = htmlString
 
         } else {
-            attributedString = NSMutableAttributedString(string: formattedMarkdown)
+            attributedString = NSMutableAttributedString(
+                string: formattedMarkdown.replacingOccurrences(of: "<br>", with: "\n")
+            )
         }
 
         var linkRanges: [Link] = []
