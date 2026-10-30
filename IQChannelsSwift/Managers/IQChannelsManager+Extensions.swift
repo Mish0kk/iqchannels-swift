@@ -295,16 +295,18 @@ extension IQChannelsManager {
         }
     }
     
+    static func eventsQuery(chatType: IQChatType) -> IQListenEventsRequest {
+        IQListenEventsRequest(chatType: chatType)
+    }
+
     private func listenToEvents(){
         guard !authResults.isEmpty, networkStatusManager.isReachable, let selectedChat else { return }
-        
-        var query = IQListenEventsRequest(chatType: selectedChat.chatType)
-        for message in messages where message.eventID ?? 0 > query.lastEventID ?? 0 {
-            query.lastEventID = message.eventID
-        }
-        
+
+        let query = Self.eventsQuery(chatType: selectedChat.chatType)
+
         currentNetworkManager?.listenToEvents(request: query, onOpen: { [weak self] in
             self?.sendAttachmentsIfNeeded()
+            self?.uploadUnsentMessages()
         }) { [weak self] events, error in
             guard let self else { return }
             
@@ -995,17 +997,39 @@ extension IQChannelsManager {
     }
     
     private func uploadUnsentMessages(){
-        guard !unsentMessages.isEmpty else { return }
+        guard !isUploadingUnsent, !unsentMessages.isEmpty else { return }
         
-        let messages = unsentMessages.sorted(by: { $0.createdDate < $1.createdDate })
+        isUploadingUnsent = true
+        let messages = unsentMessages
+            .sorted(by: { $0.createdDate < $1.createdDate })
+            .map { $0.withError(false) }
         Task {
             for message in messages {
                 await sendMessage(message)
             }
-            uploadUnsentMessages()
+            isUploadingUnsent = false
+            if !unsentMessages.isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                    self?.uploadUnsentMessages()
+                }
+            }
         }
     }
     
+    static func mergeMessages(_ messages: [IQMessage], with newMessages: [IQMessage]) -> [IQMessage] {
+        var result = messages
+        for newMessage in newMessages {
+            if let localID = newMessage.localID,
+               let index = result.firstIndex(where: { $0.messageID == 0 && $0.localID == localID }) {
+                result[index] = result[index].merged(with: newMessage)
+            } else {
+                result.append(newMessage)
+            }
+        }
+        result.sort(by: { $0.createdDate < $1.createdDate })
+        return result
+    }
+
     private func loadMessagesAndMerge() async {
         guard let networkManager = currentNetworkManager, let selectedChat else { return }
         
@@ -1017,15 +1041,11 @@ extension IQChannelsManager {
         let newMessages = (result?.0 ?? [])
             .filter { $0.hasValidPayload }
             .filter { indexOfMessage(messageID: $0.messageID) == nil }
-        print("Missed messages: ", newMessages.map { $0.text })
         if !newMessages.isEmpty {
-            var messages = self.messages
             DispatchQueue.main.async {
                 self.detailViewModel?.enableAnimMessages = true
             }
-            messages.append(contentsOf: newMessages)
-            messages.sort(by: { $0.createdDate < $1.createdDate })
-            self.messages = messages
+            self.messages = Self.mergeMessages(self.messages, with: newMessages)
         }
         listenToEvents()
     }
@@ -1344,11 +1364,12 @@ extension IQChannelsManager {
                     DispatchQueue.main.async {
                         self.detailViewModel?.enableAnimMessages = true
                     }
-                    messages.append(IQMessage(from: unsentMessage))
+                    let message = IQMessage(from: unsentMessage).withError(false)
+                    messages.append(message)
                     if(unsentMessage.file != nil){
-                        await uploadFileMessage(IQMessage(from: unsentMessage))
+                        await uploadFileMessage(message)
                     } else {
-                        await sendMessage(IQMessage(from: unsentMessage))
+                        await sendMessage(message)
                     }
                 }
             }

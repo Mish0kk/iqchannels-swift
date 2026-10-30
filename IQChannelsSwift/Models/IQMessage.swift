@@ -246,6 +246,7 @@ struct IQMessage: Codable, Identifiable, Equatable {
         // Ids
         copy.messageID = message.messageID
         copy.eventID = message.eventID
+        copy.error = false
 
         // Payload
         copy.payload = message.payload
