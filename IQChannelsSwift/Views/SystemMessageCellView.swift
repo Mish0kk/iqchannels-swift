@@ -53,8 +53,11 @@ struct SystemMessageCellView: View {
     }
     
     // MARK: - INIT
-    init(message: IQMessage) {
+    var onLinkTap: ((URL) -> Void)? = nil
+
+    init(message: IQMessage, onLinkTap: ((URL) -> Void)? = nil) {
         self.message = message
+        self.onLinkTap = onLinkTap
     }
     
     // MARK: - BODY
@@ -62,7 +65,8 @@ struct SystemMessageCellView: View {
         Group {
             if let cachedText {
                 TextLabel(text: cachedText.0,
-                          linkRanges: cachedText.1)
+                          linkRanges: cachedText.1,
+                          onLinkTap: onLinkTap)
                 .layoutPriority(1)
                 .padding(.vertical, 8)
             } else {

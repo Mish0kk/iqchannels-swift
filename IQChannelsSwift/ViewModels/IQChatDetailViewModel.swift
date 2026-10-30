@@ -40,6 +40,7 @@ class IQChatDetailViewModel: IQBaseViewModel {
     var isSkeleton = false
     var replaceRootListener = PassthroughSubject<UIViewController, Never>()
     var dismissListener = PassthroughSubject<Void, Never>()
+    var offerVisibilityReset = PassthroughSubject<Void, Never>()
     @Published var enableAnimMessages: Bool = true
     @Published var isAnonim: Bool = false
     @Published var greetingSettings: IQGreetingSettings?

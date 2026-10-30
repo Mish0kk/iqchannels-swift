@@ -130,6 +130,9 @@ struct MultiFilesMessageCellView: View {
                                 TextLabel(text: cachedText.0,
                                           linkRanges: cachedText.1,
                                           maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24))
+                                          onLinkTap: { [weak delegate] url in
+                                              delegate?.onLinkTap(url: url, message: message)
+                                          })
                                 .layoutPriority(1)
                                 .bold(isBold)
                                 .italic(isItalic)
@@ -137,6 +140,9 @@ struct MultiFilesMessageCellView: View {
                                 TextLabel(text: cachedText.0,
                                           linkRanges: cachedText.1,
                                           maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24))
+                                          onLinkTap: { [weak delegate] url in
+                                              delegate?.onLinkTap(url: url, message: message)
+                                          })
                                 .layoutPriority(1)
                             }
                         } else {

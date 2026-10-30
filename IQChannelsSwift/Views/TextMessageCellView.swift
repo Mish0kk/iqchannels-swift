@@ -11,6 +11,7 @@ struct TextMessageCellView: View {
     private let replyMessage: IQMessage?
     private let onLongPress: ((MessageControlInfo) -> Void)?
     private let onReplyMessageTapCompletion: ((Int) -> Void)?
+    private let onLinkTap: ((URL) -> Void)?
     
     private let text: String
     private let isSender: Bool
@@ -92,11 +93,13 @@ struct TextMessageCellView: View {
     init (message: IQMessage,
           replyMessage: IQMessage? = nil,
           onLongPress: ((MessageControlInfo) -> Void)? = nil,
-          onReplyMessageTapCompletion: ((Int) -> Void)? = nil) {
+          onReplyMessageTapCompletion: ((Int) -> Void)? = nil,
+          onLinkTap: ((URL) -> Void)? = nil) {
         self.message = message
         self.replyMessage = replyMessage
         self.onLongPress = onLongPress
         self.onReplyMessageTapCompletion = onReplyMessageTapCompletion
+        self.onLinkTap = onLinkTap
         self.text = message.messageText
         self.isSender = message.isMy ?? false
         
@@ -133,15 +136,21 @@ struct TextMessageCellView: View {
                         TextLabel(text: cachedText.0,
                                   linkRanges: cachedText.1,
                                   maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 48))
+                                  onLinkTap: onLinkTap)
                         .layoutPriority(1)
                         .padding(.horizontal, 12)
                     } else {
-                        PlainMessageText(text: text,
-                                         textColor: textColor,
-                                         fontSize: fontSize,
-                                         aligment: aligment,
-                                         isBold: isBold,
-                                         isItalic: isItalic)
+                        TextLabel(
+                            text: AttributeTextManager.shared.plainString(
+                                from: text,
+                                textColor: textColor,
+                                fontSize: fontSize,
+                                alingment: aligment,
+                                isBold: isBold,
+                                isItalic: isItalic
+                            ),
+                            linkRanges: []
+                        )
                         .layoutPriority(1)
                         .padding(.horizontal, 12)
                     }

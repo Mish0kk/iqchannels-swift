@@ -39,7 +39,14 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
     func setCustomHeaders(_ headers: [String: String]) {
         self.customHeaders = headers
     }
-    
+
+    func resetSessionIfNeeded() {
+        guard injectedSession == nil else { return }
+
+        session.finishTasksAndInvalidate()
+        session = URLSession(configuration: .ephemeral, delegate: self, delegateQueue: nil)
+    }
+
     func cancelTask(with taskIdentifier: Int) {
         Task {
             await session.allTasks.first(where: { $0.taskIdentifier == taskIdentifier } )?.cancel()
@@ -163,6 +170,11 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
         
         return response.error
     }
+
+    func sendAnalyticsEvent(_ event: IQAnalyticsEvent) async -> ResponseCallback<IQResult<IQEmptyResponse>> {
+        let path = "/analytics/events"
+        return await post(path, body: event, responseType: IQEmptyResponse.self)
+    }
     
     func getFile(id: String) async throws -> IQFile? {
         let path = "/files/get_file/\(id)"
@@ -228,10 +240,6 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
             return .init(error: response.error)
         }
         guard let result = response.result, let value = result.value else { return .init(error: NSError.failedToParseModel(IQChatSettings.self)) }
-        
-//        value.translations = nil
-        
-//        print("getChatSettings: \(value)")
         
         IQLog.debug(message: "getChatSettings: \(value)")
         

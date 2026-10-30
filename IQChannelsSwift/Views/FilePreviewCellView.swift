@@ -13,6 +13,7 @@ struct FilePreviewCellView: View {
     private let onFileTapCompletion: (() -> Void)?
     private let onCancelFileSendCompletion: (() -> Void)?
     private let onReplyMessageTapCompletion: ((Int) -> Void)?
+    private let onLinkTap: ((URL) -> Void)?
     private let text: String
     private let isSender: Bool
     
@@ -162,7 +163,8 @@ struct FilePreviewCellView: View {
          embedded: Bool = false,
          onFileTapCompletion: (() -> Void)? = nil,
          onCancelFileSendCompletion: (() -> Void)? = nil,
-         onReplyMessageTapCompletion: ((Int) -> Void)? = nil) {
+         onReplyMessageTapCompletion: ((Int) -> Void)? = nil,
+         onLinkTap: ((URL) -> Void)? = nil) {
         self.message = message
         self.replyMessage = replyMessage
         self.file = file
@@ -170,6 +172,7 @@ struct FilePreviewCellView: View {
         self.onFileTapCompletion = onFileTapCompletion
         self.onCancelFileSendCompletion = onCancelFileSendCompletion
         self.onReplyMessageTapCompletion = onReplyMessageTapCompletion
+        self.onLinkTap = onLinkTap
         self.text = message.text ?? ""
         self.isSender = message.isMy ?? false
         
@@ -227,6 +230,7 @@ struct FilePreviewCellView: View {
                                 TextLabel(text: cachedText.0,
                                           linkRanges: cachedText.1,
                                           maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24))
+                                          onLinkTap: onLinkTap)
                                 .layoutPriority(1)
                                 .bold(isBold)
                                 .italic(isItalic)
@@ -234,6 +238,7 @@ struct FilePreviewCellView: View {
                                 TextLabel(text: cachedText.0,
                                           linkRanges: cachedText.1,
                                           maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24))
+                                          onLinkTap: onLinkTap)
                                 .layoutPriority(1)
                             }
                         } else {

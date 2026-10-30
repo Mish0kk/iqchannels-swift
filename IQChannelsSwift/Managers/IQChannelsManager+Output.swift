@@ -15,10 +15,15 @@ extension IQChannelsManager: IQChannelsManagerListOutput {
 //        logout()
     }
     
+    func listControllerDidAppear() {
+        trackScreenView()
+    }
+    
     func listController(didSelectChat item: IQChatItemModel) {
         guard let authResult = authResults.first(where: { $0.channel == item.channel } ) else { return }
         
         selectedChat = (authResult, item.chatType)
+        trackChannelEnter(chat: (authResult, item.chatType), once: false)
     }
 }
 
@@ -106,5 +111,36 @@ extension IQChannelsManager: IQChannelsManagerDetailOutput {
     
     func detailController(didChangeSegment message: IQMessage) {
         changeSegment(message)
+    }
+
+    func detailControllerOfferTrackingContext() async -> (channel: String, thresholdMs: Int)? {
+        guard let channel = selectedChat?.auth.channel else { return nil }
+        return await analytics.offerTrackingContext(channel: channel)
+    }
+
+    func detailController(didReadOffer message: IQMessage, channel: String, visibleDurationMs: Int) {
+        let payload = IQAnalyticsEvent.offerReadPayload(
+            messageID: message.messageID,
+            channelID: message.channelID ?? message.chatID,
+            visibleDurationMs: visibleDurationMs
+        )
+        Task {
+            await analytics.track(channel: channel, type: .offerRead, payload: payload)
+        }
+    }
+
+    func detailController(didSkipOffer message: IQMessage, channel: String, reason: IQAnalyticsSkipReason) {
+        let payload = IQAnalyticsEvent.offerSkippedPayload(
+            messageID: message.messageID,
+            channelID: message.channelID ?? message.chatID,
+            reason: reason
+        )
+        Task {
+            await analytics.track(channel: channel, type: .offerSkipped, payload: payload)
+        }
+    }
+
+    func detailController(didTapLink url: URL, in message: IQMessage?) {
+        openLink(url, message: message)
     }
 }

@@ -1,17 +1,41 @@
 import SwiftUI
 import SDWebImageSwiftUI
 
+struct OfferFrameReport: Equatable {
+    let messageID: Int
+    let frame: CGRect
+}
+
+struct OfferFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [OfferFrameReport] = []
+
+    static func reduce(value: inout [OfferFrameReport], nextValue: () -> [OfferFrameReport]) {
+        value += nextValue()
+    }
+}
+
+struct ScrollViewportSizePreferenceKey: PreferenceKey {
+    static var defaultValue: CGSize = .zero
+
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        value = nextValue()
+    }
+}
+
 struct ChatMessagesView: View {
-    
+
     // MARK: - PROPERTIES
     @EnvironmentObject var viewModel: IQChatDetailViewModel
     @Environment(\.colorScheme) var colorScheme
-    
+
     weak var delegate: ChatDetailViewDelegate?
-    
+
     @State private var keyboardShown: Bool = false
     @State private var isScrollDownVisible: Bool = false
     @State private var isMenuVisibleMessage: IQMessage? = nil
+    @State private var viewportSize: CGSize = .zero
+    @State private var offerGate = IQAnalyticsVisibilityGate()
+    @State private var lastOfferReports: [OfferFrameReport] = []
     
     var loaderColor: Color {
         return IQStyle.getColor(theme: IQStyle.model?.chat?.chatLoader) ?? Color(hex: "555555")
@@ -19,6 +43,7 @@ struct ChatMessagesView: View {
     
     // MARK: - BODY
     var body: some View {
+        GeometryReader { rootGeo in
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 8) {
@@ -41,6 +66,7 @@ struct ChatMessagesView: View {
                                     getMenuView()
                                         .zIndex(200)
                                 }
+
                                 
                                 if let rating = message.rating {
                                     if(message.isPendingRatingMessage){
@@ -67,7 +93,9 @@ struct ChatMessagesView: View {
                                             }
                                         }
                                     }else{
-                                        SystemMessageCellView(message: message)
+                                        SystemMessageCellView(message: message) { [weak delegate] url in
+                                        delegate?.onLinkTap(url: url, message: message)
+                                    }
                                             .onAppear {
                                                 delegate?.onMessageAppear(with: message.messageID)
                                             }
@@ -109,6 +137,7 @@ struct ChatMessagesView: View {
                             }
                         }
                         .modifier(FlippedUpsideDown())
+                        .background(offerVisibilityReader(message: message))
                     }
                 }
                 .padding([.bottom, .horizontal], 16)
@@ -143,10 +172,26 @@ struct ChatMessagesView: View {
         .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
             isScrollDownVisible = value.y < -100
         }
+        .onAppear {
+            viewportSize = rootGeo.size
+        }
+        .onChange(of: rootGeo.size) { size in
+            viewportSize = size
+            handleOfferVisibility(lastOfferReports)
+        }
+        .onPreferenceChange(OfferFramePreferenceKey.self) { reports in
+            lastOfferReports = reports
+            handleOfferVisibility(reports)
+        }
+        .onReceive(viewModel.offerVisibilityReset) { _ in
+            offerGate.reset()
+            handleOfferVisibility(lastOfferReports)
+        }
         .onTapGesture {
             isMenuVisibleMessage = nil
         }
-        .animation(isScrollDownVisible || !viewModel.enableAnimMessages ? nil : .easeInOut(duration: 0.25), value: viewModel.messages)
+        .animation(isScrollDownVisible || !viewModel.enableAnimMessages || viewModel.disableMessagesAnimation ? nil : .easeInOut(duration: 0.25), value: viewModel.messages)
+        }
     }
     
     // MARK: - VIEWS
@@ -271,6 +316,42 @@ struct ChatMessagesView: View {
     }
     
     // MARK: - METHODS
+    @ViewBuilder
+    private func offerVisibilityReader(message: IQMessage) -> some View {
+        if message.isMailingOffer {
+            GeometryReader { geo in
+                Color.clear.preference(
+                    key: OfferFramePreferenceKey.self,
+                    value: [OfferFrameReport(messageID: message.messageID, frame: geo.frame(in: .named("scroll")))]
+                )
+            }
+        }
+    }
+
+    private func handleOfferVisibility(_ reports: [OfferFrameReport]) {
+        let viewport = CGRect(origin: .zero, size: viewportSize)
+        guard viewportSize.width > 0, viewportSize.height > 0 else { return }
+        lastOfferReports = reports
+
+        let currentlyVisible = Set(reports.compactMap { report -> Int? in
+            guard report.frame.height > 0 else { return nil }
+            let visibleHeight = report.frame.intersection(viewport).height
+            return visibleHeight / report.frame.height >= 0.5 ? report.messageID : nil
+        })
+
+        let diff = offerGate.update(currentlyVisible: currentlyVisible)
+        for id in diff.shown {
+            if let message = viewModel.messages.first(where: { $0.messageID == id }) {
+                delegate?.onOfferVisibilityChanged(message: message, visible: true)
+            }
+        }
+        for id in diff.hidden {
+            if let message = viewModel.messages.first(where: { $0.messageID == id }) {
+                delegate?.onOfferVisibilityChanged(message: message, visible: false)
+            }
+        }
+    }
+
     private func isGroupStart(_ index: Int) -> Bool {
         guard index < viewModel.messages.count - 1 else { return true }
         

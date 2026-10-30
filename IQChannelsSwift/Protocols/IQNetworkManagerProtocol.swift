@@ -12,6 +12,7 @@ protocol IQNetworkManagerProtocol {
 
     func isConnectedToEvents() -> Bool
     func setCustomHeaders(_ headers: [String: String])
+    func resetSessionIfNeeded()
     func cancelTask(with taskIdentifier: Int)
     func getAvailableLanguages() async -> ResponseCallback<[IQLanguage]>
     func listenToEvents(request: IQListenEventsRequest, onOpen: @escaping (() -> Void), callback: @escaping ResponseCallbackClosure<[IQChatEvent]>)
@@ -24,6 +25,7 @@ protocol IQNetworkManagerProtocol {
     func sendReceivedEvent(_ messageIDs: [Int]) async -> Error?
     func sendReadEvent(_ messageIDs: [Int]) async -> Error?
     func sendTypingEvent() async -> Error?
+    func sendAnalyticsEvent(_ event: IQAnalyticsEvent) async -> ResponseCallback<IQResult<IQEmptyResponse>>
     func getFile(id: String) async throws -> IQFile?
     func loadMessages(request: IQLoadMessageRequest, getSettings: Bool, isInfoChat: Bool, language: String?) async -> ResponseCallback<([IQMessage], Bool, Int?, String, [IQLanguage]?, String?)>
     func getBlocker() async -> ResponseCallback<IQInfoChatSettings>

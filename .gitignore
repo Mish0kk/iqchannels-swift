@@ -47,13 +47,10 @@ Package.resolved
 
 # Editors / AI
 .vscode/
-AGENTS.md
 
 # Xcode workspace settings
 **/*.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
 
-# Example app: local-only entitlements
-Example/IQChannelsSwift_ExampleRelease.entitlements
 
 # Carthage
 #
@@ -71,3 +68,19 @@ Carthage/Build
 
 fastlane/report.xml
 fastlane/screenshots
+# AI agents & internal docs — never publish
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.claude/
+.opencode/
+.cursor/
+.cursorrules
+.mcp.json
+.aider*
+.copilot*
+.continue/
+.windsurf*
+.codeium/
+.superpowers/
+docs/

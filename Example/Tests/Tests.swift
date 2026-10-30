@@ -1,6 +1,7 @@
 import XCTest
 @testable import IQChannelsSwift
 
+@MainActor
 class Tests: XCTestCase {
     
     var library: IQLibraryConfiguration!
@@ -47,17 +48,20 @@ class Tests: XCTestCase {
     func testAddUnreadListener() {
         let unreadListener = MockUnreadListener()
         library.addUnread(listener: unreadListener)
-        let listeners = (library.channelManager as! IQChannelsManager).unreadListeners
+        let listeners = IQChannelsManager.unreadListeners
         XCTAssertTrue(listeners.contains { $0.id == unreadListener.id }, "Unread listener should be added")
     }
     
     // Test for removeUnread listener method
-    func testRemoveUnreadListener() {
+    func testRemoveUnreadListener() async {
         let unreadListener = MockUnreadListener()
         library.addUnread(listener: unreadListener)
         library.removeUnread(listener: unreadListener)
-        let listeners = (library.channelManager as! IQChannelsManager).unreadListeners
-        XCTAssertFalse(listeners.contains { $0.id == unreadListener.id }, "Unread listener should be removed")
+        
+        let removed = await waitForAsync {
+            !IQChannelsManager.unreadListeners.contains { $0.id == unreadListener.id }
+        }
+        XCTAssertTrue(removed, "Unread listener should be removed")
     }
     
     // Test for pushToken method
@@ -65,6 +69,18 @@ class Tests: XCTestCase {
         let token = Data([0x01, 0x02, 0x03, 0x04])
         library.pushToken(token)
         // Add assertions based on expected behavior after pushing token
+    }
+
+    private func waitForAsync(
+        _ condition: @MainActor () -> Bool,
+        timeout: TimeInterval = 2
+    ) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return true }
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        return condition()
     }
     
     // Test for logout method
@@ -76,6 +92,7 @@ class Tests: XCTestCase {
 }
 
 // Mock Unread Listener
+@MainActor
 class MockUnreadListener: IQChannelsUnreadListenerProtocol {
     var id: String = UUID().uuidString
         

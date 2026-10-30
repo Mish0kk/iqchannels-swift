@@ -28,4 +28,11 @@ class IQLog {
             os_log("%{public}s", type: .error, "[ERROR]: \(message)")
         }
     }
+
+    // Method for logging warnings
+    static func warn(message: String) {
+        if isLoggingEnabled {
+            os_log("%{public}s", type: .default, "[WARN]: \(message)")
+        }
+    }
 }

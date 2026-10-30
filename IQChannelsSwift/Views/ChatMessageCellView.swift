@@ -146,10 +146,12 @@ struct ChatMessageCellView: View {
                 : nil
             )
         } else{
-            SystemMessageCellView(message: message)
+            SystemMessageCellView(message: message) { [weak delegate] url in
+                delegate?.onLinkTap(url: url, message: message)
+            }
         }
     }
-    
+
     // MARK: - VIEWS
     @ViewBuilder
     private func getAvatarView(avatarURL: URL?, userDisplayName: String) -> some View {
