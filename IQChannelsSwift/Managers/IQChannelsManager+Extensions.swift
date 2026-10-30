@@ -1223,9 +1223,25 @@ extension IQChannelsManager {
             DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
 
             let pendingMessages = messages.filter { $0.messageID == 0 }
-            let serverNewMessages = results.filter { indexOfMessage(messageID: $0.messageID) == nil }
-            if !serverNewMessages.isEmpty || !pendingMessages.isEmpty {
-                messages = Self.mergeMessages(results, with: pendingMessages)
+            var updatedMessages = results
+            var didMergePending = false
+
+            for pending in pendingMessages {
+                if results.contains(where: { $0.localID != nil && $0.localID == pending.localID && $0.messageID != 0 }) {
+                    didMergePending = true
+                } else {
+                    updatedMessages.append(pending)
+                }
+            }
+            if didMergePending {
+                unsentMessages.removeAll { pending in
+                    results.contains { $0.localID != nil && $0.localID == pending.localID && $0.messageID != 0 }
+                }
+            }
+            let hasNewMessages = results.contains { indexOfMessage(messageID: $0.messageID) == nil }
+            if didMergePending || hasNewMessages || !pendingMessages.isEmpty {
+                updatedMessages.sort(by: { $0.createdDate < $1.createdDate })
+                messages = updatedMessages
             }
             
             Task { [weak self] in
