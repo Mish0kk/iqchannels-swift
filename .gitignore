@@ -70,5 +70,19 @@ Carthage/Build
 
 fastlane/report.xml
 fastlane/screenshots
+# AI agents & internal docs — never publish
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.claude/
+.opencode/
+.cursor/
+.cursorrules
+.mcp.json
+.aider*
+.copilot*
+.continue/
+.windsurf*
+.codeium/
 .superpowers/
-docs/superpowers/
+docs/
