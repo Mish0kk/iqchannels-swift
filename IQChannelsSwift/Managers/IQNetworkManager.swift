@@ -39,7 +39,14 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
     func setCustomHeaders(_ headers: [String: String]) {
         self.customHeaders = headers
     }
-    
+
+    func resetSessionIfNeeded() {
+        guard injectedSession == nil else { return }
+
+        session.finishTasksAndInvalidate()
+        session = URLSession(configuration: .ephemeral, delegate: self, delegateQueue: nil)
+    }
+
     func cancelTask(with taskIdentifier: Int) {
         Task {
             await session.allTasks.first(where: { $0.taskIdentifier == taskIdentifier } )?.cancel()

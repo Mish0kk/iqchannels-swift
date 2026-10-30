@@ -1631,6 +1631,8 @@ extension IQChannelsManager: IQNetworkStatusManagerDelegate {
                 return
             }
             
+            networkManagers.values.forEach { $0.resetSessionIfNeeded() }
+
             if !authResults.isEmpty {
                 state = .authenticated
                 Task { await self.analytics.flushCaches() }
