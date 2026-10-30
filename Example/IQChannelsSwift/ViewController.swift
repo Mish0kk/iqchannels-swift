@@ -186,14 +186,6 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         showBottomTypingBar = sender.isOn
     }
 
-    private lazy var advancedUnreadLabel: UILabel = {
-        let label = UILabel()
-        label.text = "Непрочитанных сообщений: 0"
-        label.textColor = .black
-        label.numberOfLines = 0
-        return label
-    }()
-
     private lazy var typingBarSwitch: UISwitch = {
         let sw = UISwitch()
         sw.isOn = showBottomTypingBar
@@ -227,7 +219,7 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         buttons.spacing = 5
         
         let view = UIStackView(arrangedSubviews: [
-            serverField, emailField, channelsField, chatToOpenField, unreadLabel, advancedUnreadLabel, loginButton, anonButton, pmButton, preFilledMsgButton, styleButton, languageButton, changeStyle, buttons, clearCacheButton, typingBarRow
+            serverField, emailField, channelsField, chatToOpenField, unreadLabel, loginButton, anonButton, pmButton, preFilledMsgButton, styleButton, languageButton, changeStyle, buttons, clearCacheButton, typingBarRow
         ])
         view.spacing = 5
         view.distribution = .fillEqually
@@ -247,13 +239,20 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
     override func viewDidLoad() {
         super.viewDidLoad()
         setDismissKeyboardOnTap()
-        view.addSubview(stackView)
         view.backgroundColor = .white
-        
+        view.addSubview(scrollView)
+        scrollView.addSubview(stackView)
+
         NSLayoutConstraint.activate([
-            stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            stackView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            stackView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 16),
+            stackView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -16),
+            stackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 16),
+            stackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -16),
+            stackView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor, constant: -32),
             loginButton.heightAnchor.constraint(equalToConstant: 48)
         ])
         
