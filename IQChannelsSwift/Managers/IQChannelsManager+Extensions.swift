@@ -1038,33 +1038,29 @@ extension IQChannelsManager {
         }
     }
     
-    private func uploadUnsentMessages(attempt: Int = 0){
-        guard !isRetryingUnsentMessages else { return }
-        guard !unsentMessages.isEmpty else { return }
-        
+    private func uploadUnsentMessages(){
+        guard !isRetryingUnsentMessages, !unsentMessages.isEmpty else { return }
+
         isRetryingUnsentMessages = true
-        
-        let messages = unsentMessages.sorted(by: { $0.createdDate < $1.createdDate })
+
+        let messages = unsentMessages
+            .sorted(by: { $0.createdDate < $1.createdDate })
+            .map { $0.withError(false) }
         Task {
-            defer { isRetryingUnsentMessages = false }
-            
+            // Сообщения с ещё не загруженным файлом отправляем через загрузку,
+            // иначе файл терялся бы (уходило сообщение без fileId)
             for message in messages {
-                // Сообщения с ещё не загруженным файлом отправляем через загрузку,
-                // иначе файл терялся бы (уходило сообщение без fileId)
                 if message.fileID == nil, message.file?.dataFile != nil {
-                    await uploadFileMessage(message.withError(false))
+                    await uploadFileMessage(message)
                 } else {
-                    await sendMessage(message.withError(false))
+                    await sendMessage(message)
                 }
             }
-            
-            guard !unsentMessages.isEmpty else { return }
-            
-            // Повторяем с нарастающей задержкой (3, 6, 12, ... максимум 60 сек),
-            // чтобы не нагружать сервер запросами каждые 3 секунды
-            let nextDelay = min(pow(2, Double(attempt)) * 3, 60)
-            DispatchQueue.main.asyncAfter(deadline: .now() + nextDelay) { [weak self] in
-                self?.uploadUnsentMessages(attempt: attempt + 1)
+            isRetryingUnsentMessages = false
+            if !unsentMessages.isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                    self?.uploadUnsentMessages()
+                }
             }
         }
     }
