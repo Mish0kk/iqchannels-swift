@@ -1221,8 +1221,12 @@ extension IQChannelsManager {
             await prefetchVisibleImages(in: results)
             
             DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
-            
-            messages = results
+
+            let pendingMessages = messages.filter { $0.messageID == 0 }
+            let serverNewMessages = results.filter { indexOfMessage(messageID: $0.messageID) == nil }
+            if !serverNewMessages.isEmpty || !pendingMessages.isEmpty {
+                messages = Self.mergeMessages(results, with: pendingMessages)
+            }
             
             Task { [weak self] in
                 guard let self,
