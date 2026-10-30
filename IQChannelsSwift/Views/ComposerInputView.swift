@@ -52,15 +52,6 @@ struct ComposerInputView: UIViewRepresentable {
                     uiView.text = text
                 }
                 context.coordinator.updateHeight(uiView)
-                if uiView.frame.size.height != currentHeight {
-                    uiView.frame.size = CGSize(
-                        width: uiView.frame.size.width,
-                        height: currentHeight
-                    )
-                }
-                if uiView.contentSize.height != height {
-                    uiView.contentSize.height = height
-                }
                 uiView.textColor = textColor
                 uiView.setUpAppearance()
             }
@@ -91,6 +82,7 @@ struct ComposerInputView: UIViewRepresentable {
             if height < CustomTextAreaConfig.minHeight {
                 height = CustomTextAreaConfig.minHeight
             }
+            textView.isScrollEnabled = height > CustomTextAreaConfig.maxHeight
             if parent.height != height {
                 parent.height = height
             }
@@ -133,7 +125,7 @@ class InputTextView: UITextView {
     }
 
     open func setUpLayout() {
-        isScrollEnabled = true
+        isScrollEnabled = false
     }
 
     open func replaceSelectedText(_ text: String) {

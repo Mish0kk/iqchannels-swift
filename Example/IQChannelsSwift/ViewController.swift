@@ -8,10 +8,11 @@
 
 import UIKit
 import IQChannelsSwift
+import SDWebImage
 
 var navigationControl: UINavigationController?
 
-class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadListenerProtocol {
+class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadListenerProtocol, IQChannelsLinkListenerProtocol {
     var isPickingStyle = false
     
     var id: String {
@@ -21,6 +22,11 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         DispatchQueue.main.async {
             self.unreadLabel.text = "Непрочитанных сообщений: \(unread)"
         }
+    }
+    
+    func iqChannelsShouldHandleLink(link: String) -> Bool {
+        print("LINK TAPPED: \(link)")
+        return true
     }
     
     
@@ -164,6 +170,41 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         return button
     }()
     
+    private lazy var clearCacheButton: UIButton = {
+        let button = UIButton()
+        button.backgroundColor = .systemBlue
+        button.layer.cornerRadius = 12
+        button.setTitle("Очистить кэш", for: .normal)
+        button.addTarget(self, action: #selector(clearCacheDidTap), for: .touchUpInside)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
+    private var showBottomTypingBar = true
+    
+    private lazy var typingBarSwitch: UISwitch = {
+        let sw = UISwitch()
+        sw.isOn = showBottomTypingBar
+        sw.addTarget(self, action: #selector(typingBarSwitchChanged), for: .valueChanged)
+        return sw
+    }()
+    
+    private lazy var typingBarRow: UIStackView = {
+        let label = UILabel()
+        label.text = "Надпись \"Оператор печатает...\" внизу"
+        label.textColor = .black
+        let row = UIStackView(arrangedSubviews: [label, typingBarSwitch])
+        row.axis = .horizontal
+        row.spacing = 8
+        return row
+    }()
+    
+    private lazy var scrollView: UIScrollView = {
+        let scrollView = UIScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        return scrollView
+    }()
+    
     private lazy var stackView: UIStackView = {
         let buttons = UIStackView(arrangedSubviews: [
             styleDark, styleLight, styleSystem
@@ -174,7 +215,7 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         buttons.spacing = 5
         
         let view = UIStackView(arrangedSubviews: [
-            serverField, emailField, channelsField, chatToOpenField, unreadLabel, loginButton, anonButton, pmButton, preFilledMsgButton, styleButton, languageButton, changeStyle, buttons
+            serverField, emailField, channelsField, chatToOpenField, unreadLabel, advancedUnreadLabel, loginButton, anonButton, pmButton, preFilledMsgButton, styleButton, languageButton, changeStyle, buttons, clearCacheButton, typingBarRow
         ])
         view.spacing = 5
         view.distribution = .fillEqually
@@ -210,6 +251,7 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         
         configuration.login(.anonymous)
         configuration.addUnread(listener: self)
+        configuration.addLink(listener: self)
         
         navigationControl = configuration.getViewController()
     }
@@ -225,7 +267,7 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
                                       chatToOpen: chatToOpen,
                                       styleJson: selectedStyle,
                                       preFillMessages: preFillMessages,
-                                      showBottomTypingBar: true,
+                                      showBottomTypingBar: showBottomTypingBar,
                                       useRussianTrustedRootCA: false,
                                       urlSession: urlSession)
         preFillMessages = nil
@@ -255,6 +297,48 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         picker.allowsMultipleSelection = false
         picker.delegate = self
         present(picker, animated: true)
+    }
+
+    @objc func clearCacheDidTap() {
+        configuration.logout()
+        
+        if let domain = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: domain)
+        }
+        
+        let fileManager = FileManager.default
+        let directories: [FileManager.SearchPathDirectory] = [.applicationSupportDirectory, .cachesDirectory]
+        for directory in directories {
+            guard let url = fileManager.urls(for: directory, in: .userDomainMask).first else { continue }
+            try? fileManager.removeItem(at: url)
+            try? fileManager.createDirectory(at: url, withIntermediateDirectories: true)
+        }
+        
+        if let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first,
+           let files = try? fileManager.contentsOfDirectory(at: documents, includingPropertiesForKeys: nil) {
+            for file in files where !file.lastPathComponent.hasPrefix("iq_database") {
+                try? fileManager.removeItem(at: file)
+            }
+        }
+        
+        let tmpPath = NSTemporaryDirectory()
+        try? fileManager.removeItem(atPath: tmpPath)
+        try? fileManager.createDirectory(atPath: tmpPath, withIntermediateDirectories: true)
+        
+        SDImageCache.shared.clearMemory()
+        SDImageCache.shared.clearDisk(onCompletion: nil)
+        
+        UserDefaults.standard.set(true, forKey: "needs_db_wipe")
+        
+        DispatchQueue.main.async{
+            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let window = scene.windows.first {
+                let viewController = ViewController()
+                viewController.configuration = AppDelegate.configuration
+                window.rootViewController = UINavigationController(rootViewController: viewController)
+                viewController.showAlert(title: "", message: "Данные очищены")
+            }
+        }
     }
     
     @objc func styleDidTap(){

@@ -59,10 +59,21 @@ struct IQRelationMap {
             }
         }
         
-        if var ratings = relations?.ratings {
-            for i in 0..<ratings.count {
-                ratings[i].ratingPoll = relations?.ratingPolls?.last
-                self.ratings[ratings[i].id] = ratings[i]
+        if let ratingPolls = relations?.ratingPolls {
+            for poll in ratingPolls {
+                self.ratingPolls[poll.id] = poll
+            }
+        }
+        
+        if let ratings = relations?.ratings {
+            for rating in ratings {
+                var copy = rating
+                if let pollId = copy.ratingPollID, let poll = self.ratingPolls[pollId] {
+                    copy.ratingPoll = poll
+                } else {
+                    copy.ratingPoll = relations?.ratingPolls?.last
+                }
+                self.ratings[copy.id] = copy
             }
         }
         

@@ -38,8 +38,18 @@ struct AuthorizationView: View {
     // MARK: - VIEWS
     @ViewBuilder
     private func getLoadingView() -> some View {
-        HStack(spacing: 4) {
-            ProgressView()
+        if let iconUrl = IQStyle.model?.chat?.chatLoaderIcon {
+            AnimatedImage(url: iconUrl)
+                .resizable()
+                .indicator(SDWebImageActivityIndicator.gray)
+                .transition(SDWebImageTransition.fade)
+                .scaledToFit()
+                .frame(width: 48, height: 48)
+        } else {
+            HStack(spacing: 4) {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: IQStyle.getColor(theme: IQStyle.model?.chat?.chatLoader) ?? Color(hex: "555555")))
+            }
         }
     }
     

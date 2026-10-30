@@ -34,15 +34,21 @@ struct IQMessage: Codable, Identifiable, Equatable {
     var isAutoGreet: Bool = false
     var actions: [IQAction]?
     var singleChoices: [IQSingleChoice]?
+    var productOfferState: String?
     var product: IQProduct?
     var transferToChannel: IQTransferToChannel?
+    var transferToChatType: IQChatType?
     var mailingMessageID: Int?
 
     enum CodingKeys: String, CodingKey {
         case messageID = "id"
         case isRead = "read"
         case mailingMessageID
-        case payload, text, userID, clientID, fileID, fileIDs, chatID, channelID, createdAt, localID, isDropDown, singleChoices, product, actions, replyToMessageID, botpressPayload, disableFreeText, ratingID, author, transferToChannel
+        case payload, text, userID, clientID, fileID, fileIDs,
+            chatID, channelID, createdAt, localID, isDropDown,
+            singleChoices, product, productOfferState, actions,
+            replyToMessageID, botpressPayload, disableFreeText,
+            ratingID, author, transferToChannel, transferToChatType
     }
 
     //MARK: - Custom

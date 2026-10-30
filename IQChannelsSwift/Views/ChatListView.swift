@@ -43,7 +43,7 @@ struct ChatListView: View {
                 }
             }
         }
-        .background(Color.white.ignoresSafeArea())
+        .background((IQStyle.getColor(theme: IQStyle.model?.multiChat?.background) ?? Color.white).ignoresSafeArea())
         .animation(.easeIn(duration: 0.25), value: viewModel.chatsInfo)
         .animation(.easeInOut(duration: 0.25), value: viewModel.state)
     }

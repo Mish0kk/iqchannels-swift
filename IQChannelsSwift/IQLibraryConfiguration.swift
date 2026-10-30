@@ -110,6 +110,14 @@ public class IQLibraryConfiguration: IQLibraryConfigurationProtocol {
         channelManager?.removeAdvancedUnread(listener: listener)
     }
     
+    public func addLink(listener: any IQChannelsLinkListenerProtocol) {
+        channelManager?.addLink(listener: listener)
+    }
+    
+    public func removeLink(listener: any IQChannelsLinkListenerProtocol) {
+        channelManager?.removeLink(listener: listener)
+    }
+    
     public func pushToken(_ token: Data?) {
         channelManager?.pushToken(token)
     }

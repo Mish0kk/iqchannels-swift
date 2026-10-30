@@ -242,6 +242,40 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsAdvancedU
 }
 ```
 
+Перехват нажатий на ссылки
+-----------------------------------
+Для перехвата нажатий на ссылки в сообщениях чата нужно добавить слушателя. При нажатии на ссылку вызывается метод `iqChannelsShouldHandleLink(link:)`. Если он возвращает `true`, ссылка открывается средствами чата (системный обработчик). Если возвращает `false`, чат ничего не делает, а интегратор сам обрабатывает полученный `link` (например, выполняет внутреннюю навигацию по universal links приложения).
+
+Пример реализации:
+```swift
+class ViewController: UIViewController, IQChannelsLinkListenerProtocol {
+    var id: String {
+        UUID().uuidString
+    }
+    
+    let configuration: IQLibraryConfigurationProtocol = IQLibraryConfiguration()
+    
+    func iqChannelsShouldHandleLink(link: String) -> Bool {
+        guard let url = URL(string: link), url.host == "lk.example.ru" else {
+            return true
+        }
+        
+        openScreen(for: url)
+        return false
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        setServer(server: "https://example.ru")   // Конфигурация
+        configuration.login(.anonymous)           // Логин
+        configuration.addLink(listener: self)     // Добавление слушателя ссылок
+    }
+}
+```
+
+Слушатель получает все виды ссылок в сообщениях: HTML (`<a href>`), markdown (`[текст](url)`), обычные URL в тексте, а также нажатия на кнопки-действия `Open URL` в сообщениях ботов.
+
 Отображение логов сдк
 -----------------------------------
 Для отображения логов из сдк нужно добавить флаг в конфиг.
@@ -577,6 +611,41 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       }
     }
   },
+  "multi_chat": {             //Экран со списком чатов
+    "background": {           //Фон
+      "light": "#FFFFFF",
+      "dark": "#FFFFE0"
+    },
+    "icon_regular_chat": "https://gas-kvas.com/grafic/uploads/posts/2024-01/gas-kvas-com-p-logotip-cheloveka-na-prozrachnom-fone-4.png", //Иконка общего чата
+    "icon_personal_manager_chat": "https://gas-kvas.com/grafic/uploads/posts/2024-01/gas-kvas-com-p-logotip-cheloveka-na-prozrachnom-fone-4.png", //Иконка чата с персональным менеджером
+    "icon_info_chat": "https://gas-kvas.com/grafic/uploads/posts/2024-01/gas-kvas-com-p-logotip-cheloveka-na-prozrachnom-fone-4.png", //Иконка информационного чата
+    "background_icon": {      //Фон иконки
+      "light": "#000000",
+      "dark": "#ffffff"
+    },
+    "title": {                //Заголовок чата 
+      "color": {
+        "light": "#888888",
+        "dark": "#888888"
+      },
+      "text_size": 10,
+      "text_style": {
+        "bold": false,
+        "italic": false
+      }
+    },
+    "last_message": {          //Последнее сообщение
+      "color": {
+        "light": "#888888",
+        "dark": "#888888"
+      },
+      "text_size": 10,
+      "text_style": {
+        "bold": false,
+        "italic": false
+      }
+    }
+  },
   "chat": {                   //Общий чат:
     "background": {           //Фон чата
       "light": "#FFFFFF",
@@ -602,6 +671,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       "light": "#008080",
       "dark": "#008080"
     },
+    "chat_loader_icon": "https://example.com/loader.gif", //Иконка основного лоадера 
     "icon_operator": "https://gas-kvas.com/grafic/uploads/posts/2024-01/gas-kvas-com-p-logotip-cheloveka-na-prozrachnom-fone-4.png", //Иконка оператора
     "system_text": {          //Системные сообщения
       "color": {

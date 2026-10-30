@@ -46,6 +46,17 @@ class IQChatListViewController: IQViewController {
     
     override func setupNavBar() {
         navigationItem.leftBarButtonItem = .init(customView: backButton)
+        
+        let backgroundColor = IQStyle.getUIColor(theme: IQStyle.model?.appBar?.background) ?? UIColor(hex: "ffffff")
+        
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = backgroundColor
+
+        navigationItem.standardAppearance = appearance
+        navigationItem.scrollEdgeAppearance = appearance
+        navigationItem.compactAppearance = appearance
+        
         IQLog.debug(message: "3")
     }
     

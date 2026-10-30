@@ -26,29 +26,22 @@ struct MediaMessageCellView: View {
     @State private var showMessageLoading: Bool = false
     @State private var uiImage: UIImage? = nil
     @State private var isLoading: Bool = true
-    @State private var cachedText: (NSAttributedString, [Link])?
+    @State private var cachedText: (NSAttributedString, [Link])? = nil
     
     private func loadText() {
-        let textColor = self.textColor
-        let fontSize = self.fontSize
-        let aligment = self.aligment
-        let isBold = self.isBold
-        let isItalic = self.isItalic
-        let rawText = message.text ?? ""
+        guard cachedText == nil else { return }
         
-        DispatchQueue.global().async {
-            let result = AttributeTextManager.shared.getString(
-                from: rawText,
-                textColor: textColor,
-                fontSize: fontSize,
-                alingment: aligment,
-                isBold: isBold,
-                isItalic: isItalic
-            )
+        let result = AttributeTextManager.shared.getString(
+            from: message.text ?? "",
+            textColor: textColor,
+            fontSize: fontSize,
+            alingment: aligment,
+            isBold: isBold,
+            isItalic: isItalic
+        )
 
-            DispatchQueue.main.async {
-                self.cachedText = result
-            }
+        DispatchQueue.main.async {
+            self.cachedText = result
         }
     }
     
@@ -175,6 +168,15 @@ struct MediaMessageCellView: View {
         self.onLinkTap = onLinkTap
         self.text = message.text ?? ""
         self.isSender = message.isMy ?? false
+        
+        _cachedText = State(initialValue: AttributeTextManager.shared.getStringSync(
+            from: message.text ?? "",
+            textColor: textColor,
+            fontSize: fontSize,
+            alingment: aligment,
+            isBold: isBold,
+            isItalic: isItalic
+        ))
     }
     
     // MARK: - BODY
@@ -245,6 +247,7 @@ struct MediaMessageCellView: View {
                         if let cachedText {
                             TextLabel(text: cachedText.0,
                                       linkRanges: cachedText.1,
+                                      maxWidth: iqMessageTextMaxWidth(isSender: isSender, horizontalInsets: 24))
                                       onLinkTap: onLinkTap)
                             .layoutPriority(1)
                             .padding(.horizontal, 12)
@@ -358,7 +361,7 @@ struct MediaMessageCellView: View {
                     
                     if isLoading {
                         ProgressView()
-                            .frame(minWidth: 150, minHeight: 150)
+                            .frame(width: imageSize.width, height: imageSize.height)
                     } else if let uiImage = uiImage {
                         AnimatedImage(url: currentFile?.imagePreviewUrl)
                             .resizable()
@@ -438,36 +441,26 @@ struct MediaMessageCellView: View {
     
     // MARK: - METHODS
     private func calculateImageSize(file: IQFile?) -> CGSize {
-        let maxWidth = CGFloat(290)
-        let maxHeight = CGFloat(300)
-        let minWidth = CGFloat(150)
+        let horizontalReserve: CGFloat = isSender ? 80 : 128
+        let maxWidth = UIScreen.screenWidth - horizontalReserve
+        let maxHeight = CGFloat(450)
         
         if file?.isLoading ?? false {
             guard let data = file?.dataFile?.data,
                   let image = UIImage(data: data) else {
-                return CGSize(width: maxWidth, height: maxHeight)
+                return CGSize(width: maxWidth, height: 300)
             }
             
-            if image.size.width > image.size.height {
-                let height = maxWidth * image.size.height / image.size.width
-                return CGSize(width: maxWidth, height: height)
-            } else {
-                let width = maxHeight * image.size.width / image.size.height
-                return CGSize(width: max(width, minWidth), height: maxHeight)
-            }
+            let height = min(maxWidth * image.size.height / image.size.width, maxHeight)
+            return CGSize(width: maxWidth, height: height)
         } else {
             guard let width = file?.imageWidth,
                   let height = file?.imageHeight else {
-                return CGSize(width: maxWidth, height: maxHeight)
+                return CGSize(width: maxWidth, height: 300)
             }
             
-            let widthScale = maxWidth / CGFloat(width)
-            let heightScale = maxHeight / CGFloat(height)
-            
-            let scaleFactor = min(widthScale, heightScale)
-            
-            return CGSize(width: max(Double(CGFloat(width) * scaleFactor), minWidth),
-                          height: Double(CGFloat(height) * scaleFactor))
+            let proportionalHeight = maxWidth * CGFloat(height) / CGFloat(width)
+            return CGSize(width: maxWidth, height: min(proportionalHeight, maxHeight))
         }
     }
 }

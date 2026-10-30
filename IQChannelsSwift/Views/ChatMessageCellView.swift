@@ -139,7 +139,9 @@ struct ChatMessageCellView: View {
                                 triggerHapticFeedback(style: .rigid)
                                 onReplyToMessage?(message)
                             }
-                            dragAmountX = 0
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                dragAmountX = 0
+                            }
                         }
                 : nil
             )

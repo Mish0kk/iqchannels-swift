@@ -8,6 +8,7 @@
 import PhotosUI
 import SDWebImage
 import Combine
+import SwiftUI
 
 //MARK: - Private Methods
 extension IQChannelsManager {
@@ -71,7 +72,7 @@ extension IQChannelsManager {
             baseViewModels.setState(state)
         }.store(in: &subscriptions)
         
-        $infoChatSettings.receive(on: DispatchQueue.main).sink { [weak self] infoChatSettings in
+        $infoChatSettingsByChannel.receive(on: DispatchQueue.main).sink { [weak self] _ in
             guard let self else { return }
             
             baseViewModels.setState(infoChatSettings)
@@ -94,7 +95,7 @@ extension IQChannelsManager {
             baseViewModels.setState(state)
         }.store(in: &subscriptions)
         
-        $infoChatSettings.receive(on: DispatchQueue.main).sink { [weak self] infoChatSettings in
+        $infoChatSettingsByChannel.receive(on: DispatchQueue.main).sink { [weak self] _ in
             guard let self else { return }
             
             baseViewModels.setState(infoChatSettings)
@@ -143,6 +144,9 @@ extension IQChannelsManager {
         viewModel.showBottomTypingBar = config.showBottomTypingBar
         viewModel.useRussianTrustedRootCA = config.useRussianTrustedRootCA
         viewModel.urlSession = config.urlSession
+        viewModel.isAnonim = isAnonim
+        viewModel.greetingSettings = chat.flatMap { greetingSettingsByChannel[$0.auth.channel] }
+        viewModel.infoChatSettings = chat.flatMap { infoChatSettingsByChannel[$0.auth.channel] }
     }
     
     func getChatItems(from results: [AuthResult], config: IQChannelsConfig) -> [IQChatItemModel] {
@@ -278,9 +282,10 @@ extension IQChannelsManager {
                         var unread = IQChannelsManager.advancedUnread
                         
                         if var unread = unread,
-                           let event = events,
+                           var event = events,
                            let index = unread.channels?.firstIndex(where: { $0.name == event.name && $0.chatType == event.chatType }) {
 
+                            event.lastMessage = event.lastMessage?.withNormalizedDate
                             unread.channels?[index].lastMessage = event.lastMessage
                             unread.channels?[index].unreadCount = event.unreadCount
                             await MainActor.run {
@@ -300,10 +305,27 @@ extension IQChannelsManager {
     }
 
     private func listenToEvents(){
+<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
+        guard !authResults.isEmpty, let selectedChat else { return }
+        
+        guard networkStatusManager.isReachable else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                self?.listenToEvents()
+            }
+            return
+        }
+        
+        var query = IQListenEventsRequest(chatType: selectedChat.chatType)
+        for message in messages where message.eventID ?? 0 > query.lastEventID ?? 0 {
+            query.lastEventID = message.eventID
+        }
+        
+=======
         guard !authResults.isEmpty, networkStatusManager.isReachable, let selectedChat else { return }
 
         let query = Self.eventsQuery(chatType: selectedChat.chatType)
 
+>>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
         currentNetworkManager?.listenToEvents(request: query, onOpen: { [weak self] in
             self?.sendAttachmentsIfNeeded()
             self?.uploadUnsentMessages()
@@ -311,7 +333,7 @@ extension IQChannelsManager {
             guard let self else { return }
             
             if error != nil {
-                DispatchQueue.main.async { [weak self] in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
                     self?.currentNetworkManager?.stopListenToEvents()
                     self?.listenToEvents()
                 }
@@ -561,6 +583,10 @@ extension IQChannelsManager {
             }
         case "Open URL":
             guard let url = URL(string: action.url ?? "") else { return }
+            
+            if IQChannelsManager.shouldHandleLink(url.absoluteString) {
+                UIApplication.shared.open(url)
+            }
 
             openLink(url, message: nil)
         default: break
@@ -597,12 +623,17 @@ extension IQChannelsManager {
             
             guard let networkManager = currentNetworkManager else { return }
             
+            let error: Error?
             if(productTap.isAccept){
-                let error = await networkManager.acceptProduct(form: productForm)
+                error = await networkManager.acceptProduct(form: productForm)
             } else{
-                let error = await networkManager.declineProduct(form: productForm)
+                error = await networkManager.declineProduct(form: productForm)
             }
             
+            if error == nil,
+               let index = messages.firstIndex(where: { $0.messageID == productTap.messageID }) {
+                messages[index].productOfferState = productTap.isAccept ? "accepted" : "declined"
+            }
         }
     }
 
@@ -625,7 +656,11 @@ extension IQChannelsManager {
                 self.detailViewModel?.enableAnimMessages = true
             }
             
+<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
+            let message = IQMessage(text: "2.4.7", localID: nextLocalId(), clientID: selectedChat.auth.auth.client?.id)
+=======
             let message = IQMessage(text: IQChannelsVersion.current, localID: nextLocalId(), clientID: selectedChat.auth.auth.client?.id)
+>>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
             
             messages.append(message)
             DispatchQueue.main.async {
@@ -656,20 +691,17 @@ extension IQChannelsManager {
             messages.append(contentsOf: newMessages)
     
             Task {
-                for message in newMessages {
+                for (index, message) in newMessages.enumerated() {
+                    // Пауза между загрузками, чтобы не отправлять на сервер всплеск запросов
+                    if index > 0 {
+                        try? await Task.sleep(nanoseconds: UInt64(fileUploadPause * 1_000_000_000))
+                    }
                     await uploadFileMessage(message)
                 }
             }
     
         } else {
             let message = IQMessage(text: text, chatType: selectedChat.chatType, clientID: selectedChat.auth.auth.client?.id, localID: nextLocalId(), replyMessageID: replyToMessage)
-            let isLongText = text.count > 1000
-            detailViewModel?.disableMessagesAnimation = isLongText
-            if isLongText {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
-                    self?.detailViewModel?.disableMessagesAnimation = false
-                }
-            }
             DispatchQueue.main.async {
                 self.detailViewModel?.enableAnimMessages = true
             }
@@ -682,7 +714,13 @@ extension IQChannelsManager {
     
     public func resendMessage(_ message: IQMessage) {
         Task {
-            await sendMessage(message)
+            // Если файл ещё не загружен на сервер — сначала загружаем его,
+            // отправка сообщения произойдёт после успешной загрузки
+            if message.fileID == nil, message.file?.dataFile != nil {
+                await uploadFileMessage(message)
+            } else {
+                await sendMessage(message)
+            }
         }
     }
     
@@ -818,7 +856,7 @@ extension IQChannelsManager {
         }
     }
     
-    private func uploadFileMessage(_ message: IQMessage) async {
+    private func uploadFileMessage(_ message: IQMessage, attempts: Int = 0) async {
         guard let networkManager = currentNetworkManager,
               let dataFile = message.file?.dataFile,
               indexOfMyMessage(localID: message.localID) != nil else { return }
@@ -831,28 +869,43 @@ extension IQChannelsManager {
             }
         }
         
-        if response.error != nil {
-            if let error = response.error {
-                if error.localizedDescription.contains("отменено") { return }
-                let errorMessage = message.withError(true)
+        if let error = response.error {
+            let nsError = error as NSError
+            let isCancelled = nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled
+            
+            // Пользователь сам отменил загрузку — это не ошибка
+            if isCancelled || error.localizedDescription.contains("отменено") { return }
+            
+            // Временная ошибка (таймаут, лимиты сервера, сеть) — повторяем с задержкой,
+            // как при отправке текстовых сообщений
+            if networkStatusManager.isReachable && attempts < 4 {
+                let nextAttempt = attempts + 1
                 
-                if let index = messages.firstIndex(where: { $0.localID == message.localID }) {
-                    messages[index] = errorMessage
-                }
-                
-                IQDatabaseManager.shared.insertMessage(errorMessage.toDatabaseMessage())
-                unsentMessages.append(errorMessage)
-            } else {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
                     Task {
-                        await self?.uploadFileMessage(message)
+                        await self?.uploadFileMessage(message, attempts: nextAttempt)
                     }
                 }
+                return
+            }
+            
+            let errorMessage = message.withError(true)
+            
+            if let index = messages.firstIndex(where: { $0.localID == message.localID }) {
+                messages[index] = errorMessage
+            }
+            
+            IQDatabaseManager.shared.insertMessage(errorMessage.toDatabaseMessage())
+            if !unsentMessages.contains(where: { $0.id == errorMessage.id }) {
+                unsentMessages.append(errorMessage)
             }
         } else if let file = response.result,
                   let index = indexOfMyMessage(localID: message.localID) {
+            // Сбрасываем флаг ошибки — актуально при повторной отправке
+            messages[index] = messages[index].withError(false)
             messages[index].file = file
             messages[index].fileID = file.id
+            unsentMessages.removeAll { $0.id == messages[index].id }
             Task {
                 await sendMessage(messages[index])
             }
@@ -954,7 +1007,7 @@ extension IQChannelsManager {
                let chat = selectedChat,
                let index = unread.channels?.firstIndex(where: { $0.name == chat.auth.channel && $0.chatType == chat.chatType.rawValue }) {
                 
-                unread.channels?[index].lastMessage = LastMessage(text: message.text, fileID: message.file?.id, isSurvey: false, date: ISO8601DateFormatter().string(from: Date()))
+                unread.channels?[index].lastMessage = LastMessage(text: message.text, fileID: message.file?.id, isSurvey: false, date: LastMessage.serverDateString(from: Date()))
                 
                 Task { @MainActor in
                     IQChannelsManager.advancedUnread = unread
@@ -989,7 +1042,9 @@ extension IQChannelsManager {
                     }
                     
                     IQDatabaseManager.shared.insertMessage(errorMessage.toDatabaseMessage())
-                    unsentMessages.append(errorMessage)
+                    if !unsentMessages.contains(where: { $0.id == errorMessage.id }) {
+                        unsentMessages.append(errorMessage)
+                    }
                 }
             } else {
                 unsentMessages.removeAll(where: { $0.id == message.id })
@@ -997,6 +1052,15 @@ extension IQChannelsManager {
         }
     }
     
+<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
+    private func uploadUnsentMessages(attempt: Int = 0){
+        guard !isRetryingUnsentMessages else { return }
+        guard !unsentMessages.isEmpty else { return }
+        
+        isRetryingUnsentMessages = true
+        
+        let messages = unsentMessages.sorted(by: { $0.createdDate < $1.createdDate })
+=======
     private func uploadUnsentMessages(){
         guard !isUploadingUnsent, !unsentMessages.isEmpty else { return }
         
@@ -1004,16 +1068,37 @@ extension IQChannelsManager {
         let messages = unsentMessages
             .sorted(by: { $0.createdDate < $1.createdDate })
             .map { $0.withError(false) }
+>>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
         Task {
+            defer { isRetryingUnsentMessages = false }
+            
             for message in messages {
-                await sendMessage(message)
+                // Сообщения с ещё не загруженным файлом отправляем через загрузку,
+                // иначе файл терялся бы (уходило сообщение без fileId)
+                if message.fileID == nil, message.file?.dataFile != nil {
+                    await uploadFileMessage(message.withError(false))
+                } else {
+                    await sendMessage(message.withError(false))
+                }
             }
+            
+            guard !unsentMessages.isEmpty else { return }
+            
+            // Повторяем с нарастающей задержкой (3, 6, 12, ... максимум 60 сек),
+            // чтобы не нагружать сервер запросами каждые 3 секунды
+            let nextDelay = min(pow(2, Double(attempt)) * 3, 60)
+            DispatchQueue.main.asyncAfter(deadline: .now() + nextDelay) { [weak self] in
+                self?.uploadUnsentMessages(attempt: attempt + 1)
+            }
+<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
+=======
             isUploadingUnsent = false
             if !unsentMessages.isEmpty {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
                     self?.uploadUnsentMessages()
                 }
             }
+>>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
         }
     }
     
@@ -1039,10 +1124,37 @@ extension IQChannelsManager {
         networkManager.stopListenToEvents()
 
         let result = await networkManager.loadMessages(request: .init(chatType: selectedChat.chatType), getSettings: false, isInfoChat: isInfoChat, language: detailViewModel?.selectedLanguage?.code).result
-        let newMessages = (result?.0 ?? [])
-            .filter { $0.hasValidPayload }
+        let serverMessages = (result?.0 ?? []).filter { $0.hasValidPayload }
+        
+        var mergedMessageIDs = Set<Int>()
+        var updatedMessages = self.messages
+        var didMergePending = false
+        
+        for (index, item) in updatedMessages.enumerated() {
+            var localMessage = item
+            guard localMessage.messageID == 0,
+                  localMessage.isMy ?? false,
+                  let localID = localMessage.localID,
+                  let serverCopy = serverMessages.first(where: { $0.localID == localID && $0.messageID != 0 }) else { continue }
+            
+            var merged = localMessage.merged(with: serverCopy)
+            merged.error = false
+            updatedMessages[index] = merged
+            mergedMessageIDs.insert(serverCopy.messageID)
+            didMergePending = true
+            unsentMessages.removeAll { $0.localID == localID }
+        }
+        
+        let newMessages = serverMessages
             .filter { indexOfMessage(messageID: $0.messageID) == nil }
+<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
+            .filter { !mergedMessageIDs.contains($0.messageID) }
+        
+        if !newMessages.isEmpty || didMergePending {
+            var messages = updatedMessages
+=======
         if !newMessages.isEmpty {
+>>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
             DispatchQueue.main.async {
                 self.detailViewModel?.enableAnimMessages = true
             }
@@ -1115,21 +1227,24 @@ extension IQChannelsManager {
             
             if let error = result.error {
                 DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
+                
+                if (error as NSError).domain == NSURLErrorDomain {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                        self?.loadMessages()
+                    }
+                    return
+                }
+                
                 baseViewModels.sendError(error)
                 return
             }
             let results = (result.result?.0 ?? []).filter { $0.hasValidPayload }
             
-            await prefetchVisibleImages(in: results)
-            
-            DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
             self.systemChat = result.result?.1 ?? false
             let lifeTime = result.result?.2
             let chatLabel = result.result?.3
             let availableLanguages = result.result?.4
             let chatSubtitle = result.result?.5
-            
-            messages = results
             
             DispatchQueue.main.async {
                 if let chatLabel = chatLabel {
@@ -1142,7 +1257,24 @@ extension IQChannelsManager {
                 }
                 
                 self.detailViewModel?.isAnonim = self.isAnonim
-                self.detailViewModel?.greetingSettings = self.greetingSettings
+                self.detailViewModel?.greetingSettings = self.greetingSettingsByChannel[selectedChat.auth.channel]
+            }
+            
+            await prefetchVisibleImages(in: results)
+            
+            DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
+            
+            messages = results
+            
+            Task { [weak self] in
+                guard let self,
+                      let networkManager = self.currentNetworkManager else { return }
+                let languagesResponse = await networkManager.getAvailableLanguages()
+                if let languages = languagesResponse.result {
+                    await MainActor.run {
+                        self.detailViewModel?.availableLanguages = languages
+                    }
+                }
             }
             
             if let lifeTime {
@@ -1158,7 +1290,7 @@ extension IQChannelsManager {
             
             
             DispatchQueue.main.async {
-                self.detailViewModel?.infoChatSettings = self.infoChatSettings
+                self.detailViewModel?.infoChatSettings = self.infoChatSettingsByChannel[selectedChat.auth.channel]
             }
             
             listenToEvents()
@@ -1181,18 +1313,25 @@ extension IQChannelsManager {
         }
     }
     
-    private func getUnreadMessagesCount() {
+    private func getUnreadMessagesCount(attempt: Int = 0) {
         Task {
-            guard let networkManager = currentNetworkManager, let selectedChat else { return }
+            guard attempt < 5 else { return }
+            
+            guard networkStatusManager.isReachable,
+                  let networkManager = currentNetworkManager,
+                  let selectedChat else {
+                retryUnreadCount(after: attempt)
+                return
+            }
             
             let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
             
- 
+
             let result = await networkManager.loadMessages(request: .init(clientId: selectedChat.auth.auth.client?.id, chatType: selectedChat.chatType), getSettings: true, isInfoChat: isInfoChat, language: detailViewModel?.selectedLanguage?.code)
             DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
             
-            if let error = result.error {
-                baseViewModels.sendError(error)
+            if result.error != nil {
+                retryUnreadCount(after: attempt)
                 return
             }
             
@@ -1202,6 +1341,12 @@ extension IQChannelsManager {
                 self.detailViewModel?.enableAnimMessages = false
                 self.messages = results
             }
+        }
+    }
+    
+    private func retryUnreadCount(after attempt: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            self?.getUnreadMessagesCount(attempt: attempt + 1)
         }
     }
     
@@ -1226,6 +1371,11 @@ extension IQChannelsManager {
             isLoadingOldMessages = false
             
             if let error = result.error {
+                if (error as NSError).domain == NSURLErrorDomain {
+                    isLoadingOldMessages = false
+                    return
+                }
+                
                 baseViewModels.sendError(error)
                 return
             }
@@ -1410,9 +1560,8 @@ extension IQChannelsManager {
                 }
             }
             
-            if let authResult = authResults.first(where: { $0.channel == message.transferToChannel?.name && $0.auth.client?.canAccessPersonalManager == false }) {
-//                self.selectedChat = (authResult, IQChatType.manager)
-                self.selectedChat = (authResult, IQChatType.chat)
+            if let authResult = authResults.first(where: { $0.channel == message.transferToChannel?.name}) {
+                self.selectedChat = (authResult, message.transferToChatType ?? .chat)
             }
         }
     }
@@ -1431,6 +1580,9 @@ extension IQChannelsManager {
         state = .loggedOut
         loginType = nil
         listViewModel = nil
+        infoChatSettingsByChannel = [:]
+        greetingSettingsByChannel = [:]
+        isAnonim = false
     }
 
     private func activateAnalytics(results: [AuthResult]) {
@@ -1476,10 +1628,10 @@ extension IQChannelsManager {
                         }
                     
                         if let greetingSettingsResult = await networkManager.getSignupGreetingSettings().result{
-                            greetingSettings = greetingSettingsResult
+                            greetingSettingsByChannel[channel] = greetingSettingsResult
                         }
                         if let infoChatSettingsResult = await networkManager.getBlocker().result{
-                            infoChatSettings = infoChatSettingsResult
+                            infoChatSettingsByChannel[channel] = infoChatSettingsResult
                         }
                     
                         isAnonim = true
@@ -1535,7 +1687,10 @@ extension IQChannelsManager {
     private func auth(_ type: IQLoginType, failedWith error: Error?, _ completion: (() -> Void)?) {
         authResults = []
         state = networkStatusManager.isReachable ? .loggedOut : .awaitingNetwork
-        if(greetingSettings?.channelType == "info" && isAnonim){
+        // The whole-app stub makes sense only when every configured channel is an info channel
+        // (e.g. a single-channel info app). With a mix of chat + info channels we keep retrying.
+        let isInfoChannelsOnly = !greetingSettingsByChannel.isEmpty && greetingSettingsByChannel.values.allSatisfy { $0.channelType == "info" }
+        if(isInfoChannelsOnly && isAnonim){
             state = .infoChatStub
         } else {
             if networkStatusManager.isReachable {

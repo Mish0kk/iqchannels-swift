@@ -16,6 +16,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     static let configuration: IQLibraryConfigurationProtocol = IQLibraryConfiguration()
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        if UserDefaults.standard.bool(forKey: "needs_db_wipe") {
+            UserDefaults.standard.set(false, forKey: "needs_db_wipe")
+            let fileManager = FileManager.default
+            if let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first,
+               let files = try? fileManager.contentsOfDirectory(at: documents, includingPropertiesForKeys: nil) {
+                for file in files where file.lastPathComponent.hasPrefix("iq_database") {
+                    try? fileManager.removeItem(at: file)
+                }
+            }
+        }
+        
         UNUserNotificationCenter.current().delegate = self
 
         requestNotificationPermission(application: application)

@@ -178,10 +178,16 @@ extension IQNetworkManager: URLSessionDelegate {
         let url = requestUrl(path)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        // Загрузка больших файлов может идти дольше дефолтных 60 секунд на запрос
+        request.timeoutInterval = 120
         
         let boundary = "-----------iqchannels-boundary-\(UUID().uuidString)"
         let contentType = "multipart/form-data; boundary=\(boundary)"
         request.addValue(contentType, forHTTPHeaderField: "Content-Type")
+        
+        if let token {
+            request.addValue("Client \(token)", forHTTPHeaderField: "Authorization")
+        }
         
         if let customHeaders {
             for (key, value) in customHeaders {

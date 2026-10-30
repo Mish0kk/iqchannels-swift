@@ -209,7 +209,9 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
         }
         guard let result = response.result, let value = result.value?.languages else { return .init(error: NSError.failedToParseModel(IQLanguageResponse.self)) }
         
-        IQLog.debug(message: "getAvailableLanguages: \n success")
+        print("getAvailableLanguages: \(value)")
+        
+        IQLog.debug(message: "getAvailableLanguages: \(value)")
         
         return .init(result: value)
     }
@@ -258,13 +260,7 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
         var chatTitle: String = "Чат с оператором"
         var chatSubtitle: String? = nil
         var systemChat: Bool = false
-        var availableLanguages: [IQLanguage]?
-        
-        let availableLanguagesResponse = await getAvailableLanguages()
-        
-        if let availableLanguagesResult = availableLanguagesResponse.result{
-            availableLanguages = availableLanguagesResult
-        }
+        var availableLanguages: [IQLanguage]? = nil
         
         if(getSettings){
             let chatSettings = await getChatSettings(request: .init(clientId: request.clientId, chatType: request.chatType))
@@ -506,7 +502,12 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
         let params = ["ChannelNames": channels]
         let response = await post(path, body: params, responseType: IQAdvancedUnread.self)
         
-        if let result = response.result?.value{
+        if var result = response.result?.value{
+            result.channels = result.channels?.map { channel in
+                var copy = channel
+                copy.lastMessage = channel.lastMessage?.withNormalizedDate
+                return copy
+            }
             IQChannelsManager.advancedUnread = result
             Task {
                 await MainActor.run {

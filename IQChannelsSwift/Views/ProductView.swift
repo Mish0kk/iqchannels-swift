@@ -20,7 +20,7 @@ struct ProductView: View {
         VStack(alignment: message.isMy ?? false ? .trailing : .leading, spacing: 4) {
             TextMessageCellView(message: message)
             
-            if let product = message.product {
+            if let product = message.product, message.productOfferState == "pending" {
 //                ForEach(singleChoices) { singleChoice in
                 let backgroundColor = IQStyle.getColor(theme: IQStyle.model?.singleChoice?.backgroundButton) ?? Color(hex: "AFB8BE")
                 let textColor = IQStyle.getColor(theme: IQStyle.model?.singleChoice?.textButton?.color) ?? Color.white

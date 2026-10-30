@@ -19,6 +19,7 @@ struct IQStyleModel: Decodable {
     let toolsToMessage: ToolsToMessageStyle?
     let error: ErrorStyle?
     let singleChoice: SingleChoiceStyle?
+    let multiChat: MultiChatStyle?
     var theme: Apperance?
 
     enum CodingKeys: String, CodingKey {
@@ -32,6 +33,7 @@ struct IQStyleModel: Decodable {
         case toolsToMessage = "tools_to_message"
         case error
         case singleChoice = "single-choice"
+        case multiChat = "multi_chat"
         case theme
     }
     
@@ -63,6 +65,7 @@ struct IQStyleModel: Decodable {
         let dateText: Text?
         let chatHistory: Theme?
         let chatLoader: Theme?
+        let chatLoaderIcon: URL?
         let iconOperator: URL?
         let systemText: Text?
         let newMessageBackground: Theme?
@@ -75,11 +78,32 @@ struct IQStyleModel: Decodable {
             case dateText = "date_text"
             case chatHistory = "chat_history"
             case chatLoader = "chat_loader"
+            case chatLoaderIcon = "chat_loader_icon"
             case iconOperator = "icon_operator"
             case systemText = "system_text"
             case newMessageBackground = "new_message_background"
             case scrollDownButtonBackground = "scroll_down_button_background"
             case scrollDownButtonIconColor = "scroll_down_button_icon_color"
+        }
+    }
+
+    struct MultiChatStyle: Decodable {
+        let background: Theme?
+        let iconRegularChat: URL?
+        let iconPersonalManagerChat: URL?
+        let iconInfoChat: URL?
+        let backgroundIcon: Theme?
+        let title: Text?
+        let lastMessage: Text?
+
+        enum CodingKeys: String, CodingKey {
+            case background
+            case iconRegularChat = "icon_regular_chat"
+            case iconPersonalManagerChat = "icon_personal_manager_chat"
+            case iconInfoChat = "icon_info_chat"
+            case backgroundIcon = "background_icon"
+            case title
+            case lastMessage = "last_message"
         }
     }
 

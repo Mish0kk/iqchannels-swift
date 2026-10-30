@@ -1,4 +1,5 @@
 import SwiftUI
+import ImageIO
 import SDWebImageSwiftUI
 
 enum CustomTextAreaConfig {
@@ -203,7 +204,6 @@ struct ChatInputView: View {
             }
             .opacity(showSendButton ? 1 : 0)
         }
-        .animation(.spring(response: 0.5, dampingFraction: 0.6, blendDuration: 0.3), value: showSendButton)
         .padding(.horizontal, 8)
         .padding(.vertical, 12)
         .background(backgroundColor)
@@ -311,6 +311,74 @@ struct ChatInputView: View {
     
     @ViewBuilder
     private func getFilePreview(files: [DataFile]) -> some View {
+        if files.first.map({ downsampledThumbnail(from: $0.data) != nil }) == true {
+            getImagesPreview(files: files)
+        } else {
+            getFileRowPreview(files: files)
+        }
+    }
+    
+    @ViewBuilder
+    private func getImagesPreview(files: [DataFile]) -> some View {
+        let backgroundColor = IQStyle.getColor(theme: IQStyle.model?.answer?.backgroundTextUpMessage) ?? Color.clear
+        
+        HStack(spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Array(files.prefix(10).enumerated()), id: \.offset) { _, file in
+                        if let thumbnail = downsampledThumbnail(from: file.data) {
+                            Image(uiImage: thumbnail)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 56, height: 56)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                    }
+                    
+                    if files.count > 10 {
+                        Text("+ \(files.count - 10)")
+                            .font(.system(size: 15))
+                            .foregroundColor(Color(hex: "242729"))
+                    }
+                }
+            }
+            
+            Button {
+                selectedFiles = nil
+            } label: {
+                if let iconCancelUrl = IQStyle.model?.answer?.iconCancel {
+                    AnimatedImage(url: iconCancelUrl)
+                        .resizable()
+                        .indicator(SDWebImageActivityIndicator.gray)
+                        .transition(SDWebImageTransition.fade)
+                        .frame(width: 24, height: 24)
+                } else {
+                    Image(name: "close_fill")
+                        .resizable()
+                        .frame(width: 24, height: 24)
+                }
+            }
+        }
+        .frame(height: 72)
+        .padding(.horizontal, 8)
+        .background(backgroundColor)
+    }
+    
+    private func downsampledThumbnail(from data: Data) -> UIImage? {
+        guard !data.isEmpty,
+              let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary) else { return nil }
+        
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: 120,
+            kCGImageSourceShouldCacheImmediately: true
+        ] as CFDictionary) else { return nil }
+        
+        return UIImage(cgImage: cgImage)
+    }
+    
+    @ViewBuilder
+    private func getFileRowPreview(files: [DataFile]) -> some View {
         let backgroundColor = IQStyle.getColor(theme: IQStyle.model?.answer?.backgroundTextUpMessage) ?? Color.clear
         
         let fileNameTextColor = IQStyle.getColor(theme: IQStyle.model?.messagesFile?.textFilenameOperator?.color) ?? Color(hex: "242729")

@@ -113,7 +113,7 @@ struct HideKeyboardOnTapGesture: ViewModifier {
 struct HideKeyboardOnDragGesture: ViewModifier {
     public func body(content: Content) -> some View {
         if #available(iOS 16, *) {
-            content.scrollDismissesKeyboard(.immediately)
+            content.scrollDismissesKeyboard(.interactively)
         } else {
             content.gesture(DragGesture()
                 .onChanged { _ in
@@ -121,6 +121,10 @@ struct HideKeyboardOnDragGesture: ViewModifier {
                 })
         }
     }
+}
+
+func iqMessageTextMaxWidth(isSender: Bool, horizontalInsets: CGFloat) -> CGFloat {
+    UIScreen.screenWidth - (isSender ? 80 : 128) - horizontalInsets
 }
 
 func resignFirstResponder() {
