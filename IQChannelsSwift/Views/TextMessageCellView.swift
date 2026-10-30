@@ -137,12 +137,17 @@ struct TextMessageCellView: View {
                         .layoutPriority(1)
                         .padding(.horizontal, 12)
                     } else {
-                        PlainMessageText(text: text,
-                                         textColor: textColor,
-                                         fontSize: fontSize,
-                                         aligment: aligment,
-                                         isBold: isBold,
-                                         isItalic: isItalic)
+                        TextLabel(
+                            text: AttributeTextManager.shared.plainString(
+                                from: text,
+                                textColor: textColor,
+                                fontSize: fontSize,
+                                alingment: aligment,
+                                isBold: isBold,
+                                isItalic: isItalic
+                            ),
+                            linkRanges: []
+                        )
                         .layoutPriority(1)
                         .padding(.horizontal, 12)
                     }

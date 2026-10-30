@@ -85,6 +85,36 @@ final class AttributeTextManagerTests: XCTestCase {
         XCTAssertEqual(attributedHeight, plainHeight, accuracy: 1.0)
     }
 
+    func testPlaceholderHeightMatchesFinalHeightForLongUnspacedMultilineText() {
+        let longLine = "ывраарвлыаыворавыолывраарвлыаыворавыолывраарвлыаыворавыолывраарвлыаыворавыол"
+        let text = (0..<6).map { _ in longLine }.joined(separator: "\n")
+        let width = UIScreen.screenWidth / 1.5 - 24
+
+        let final = AttributeTextManager.shared.getString(
+            from: text,
+            textColor: .black,
+            fontSize: 17,
+            alingment: .leading,
+            isBold: false,
+            isItalic: false
+        ).0
+
+        let placeholder = AttributeTextManager.shared.plainString(
+            from: text,
+            textColor: .black,
+            fontSize: 17,
+            alingment: .leading,
+            isBold: false,
+            isItalic: false
+        )
+
+        XCTAssertEqual(
+            height(final, width: width),
+            height(placeholder, width: width),
+            accuracy: 1.0
+        )
+    }
+
     func testSingleLineTextContentPreserved() {
         let text = "обычное сообщение без переносов"
 
