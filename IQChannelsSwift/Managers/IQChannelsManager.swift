@@ -35,7 +35,6 @@ class IQChannelsManager: IQChannelsManagerProtocol {
         [listViewModel, detailViewModel].compactMap { $0 }
     }
     var unsentMessages = [IQMessage]()
-    var isUploadingUnsent = false
     var isRetryingUnsentMessages = false
     var readMessages = Set<Int>()
     var authAttempt = 0
@@ -190,11 +189,16 @@ class IQChannelsManager: IQChannelsManagerProtocol {
         !linkListeners.contains { !$0.iqChannelsShouldHandleLink(link: link) }
     }
     
-    func login(_ loginType: IQLoginType, _ completion: (() -> Void)?) {
+    func login(_ loginType: IQLoginType, _ completion: ((Bool) -> Void)?) {
         logout()
         var fired = false
         let onceCompletion = completion.map { callback in
-            { if !fired { fired = true; callback() } }
+            { (success: Bool) in
+                if !fired {
+                    fired = true
+                    callback(success)
+                }
+            }
         }
         auth(loginType, onceCompletion)
     }

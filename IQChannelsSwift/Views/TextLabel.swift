@@ -4,7 +4,7 @@ typealias Link = (String, NSRange)
 
 struct TextLabel: UIViewRepresentable {
     typealias UIViewType = UILabel
-    
+
     let text: NSAttributedString
     let linkRanges: [Link]
     var maxWidth: CGFloat = UIScreen.screenWidth / 1.5 - 24
@@ -50,7 +50,7 @@ struct TextLabel: UIViewRepresentable {
         func onLabelTap(gesture: UITapGestureRecognizer) {
             guard let label else { return }
             if let link = parent.linkRanges.first(where: { gesture.didTapAttributedTextInLabel(label: label, inRange: $0.1) }),
-            let url = URL(string: link.0) {
+               let url = URL(string: link.0) {
                 if IQChannelsManager.shouldHandleLink(url.absoluteString) {
                     if let onLinkTap = parent.onLinkTap {
                         onLinkTap(url)
@@ -59,10 +59,10 @@ struct TextLabel: UIViewRepresentable {
                     }
                 }
             }
-            
-            func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
-                return true
-            }
+        }
+        
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            return true
         }
     }
 }

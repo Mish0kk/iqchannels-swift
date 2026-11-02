@@ -18,7 +18,7 @@ public protocol IQLibraryConfigurationProtocol {
     /// Sets custom HTTP headers for network requests.
     func setCustomHeaders(_ headers: [String: String])
     /// Logs in the user with the specified login type.
-    func login(_ loginType: IQLoginType, _ completion: (() -> Void)?)
+    func login(_ loginType: IQLoginType, _ completion: ((Bool) -> Void)?)
     /// Logs out the current user and closes chat.
     func logout()
     /// Adds event listener to handle events

@@ -305,27 +305,17 @@ extension IQChannelsManager {
     }
 
     private func listenToEvents(){
-//<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
-//        guard !authResults.isEmpty, let selectedChat else { return }
-//        
-//        guard networkStatusManager.isReachable else {
-//            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
-//                self?.listenToEvents()
-//            }
-//            return
-//        }
-//        
-//        var query = IQListenEventsRequest(chatType: selectedChat.chatType)
-//        for message in messages where message.eventID ?? 0 > query.lastEventID ?? 0 {
-//            query.lastEventID = message.eventID
-//        }
-//        
-//=======
-        guard !authResults.isEmpty, networkStatusManager.isReachable, let selectedChat else { return }
+        guard !authResults.isEmpty, let selectedChat else { return }
+
+        guard networkStatusManager.isReachable else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+                self?.listenToEvents()
+            }
+            return
+        }
 
         let query = Self.eventsQuery(chatType: selectedChat.chatType)
 
-//>>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
         currentNetworkManager?.listenToEvents(request: query, onOpen: { [weak self] in
             self?.sendAttachmentsIfNeeded()
             self?.uploadUnsentMessages()
@@ -559,6 +549,9 @@ extension IQChannelsManager {
         updated.isSystem = true
         messages[index] = updated
     }
+    
+
+    
 }
 
 
@@ -653,11 +646,7 @@ extension IQChannelsManager {
                 self.detailViewModel?.enableAnimMessages = true
             }
             
-//<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
-//            let message = IQMessage(text: "2.4.7", localID: nextLocalId(), clientID: selectedChat.auth.auth.client?.id)
-//=======
             let message = IQMessage(text: IQChannelsVersion.current, localID: nextLocalId(), clientID: selectedChat.auth.auth.client?.id)
-//>>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
             
             messages.append(message)
             DispatchQueue.main.async {
@@ -1049,53 +1038,30 @@ extension IQChannelsManager {
         }
     }
     
-//<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
-    private func uploadUnsentMessages(attempt: Int = 0){
-        guard !isRetryingUnsentMessages else { return }
-        guard !unsentMessages.isEmpty else { return }
-        
+    private func uploadUnsentMessages(){
+        guard !isRetryingUnsentMessages, !unsentMessages.isEmpty else { return }
+
         isRetryingUnsentMessages = true
-        
-        let messages = unsentMessages.sorted(by: { $0.createdDate < $1.createdDate })
-//=======
-//    private func uploadUnsentMessages(){
-//        guard !isUploadingUnsent, !unsentMessages.isEmpty else { return }
-//        
-//        isUploadingUnsent = true
-//        let messages = unsentMessages
-//            .sorted(by: { $0.createdDate < $1.createdDate })
-//            .map { $0.withError(false) }
-//>>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
+
+        let messages = unsentMessages
+            .sorted(by: { $0.createdDate < $1.createdDate })
+            .map { $0.withError(false) }
         Task {
-            defer { isRetryingUnsentMessages = false }
-            
+            // Сообщения с ещё не загруженным файлом отправляем через загрузку,
+            // иначе файл терялся бы (уходило сообщение без fileId)
             for message in messages {
-                // Сообщения с ещё не загруженным файлом отправляем через загрузку,
-                // иначе файл терялся бы (уходило сообщение без fileId)
                 if message.fileID == nil, message.file?.dataFile != nil {
-                    await uploadFileMessage(message.withError(false))
+                    await uploadFileMessage(message)
                 } else {
-                    await sendMessage(message.withError(false))
+                    await sendMessage(message)
                 }
             }
-            
-            guard !unsentMessages.isEmpty else { return }
-            
-            // Повторяем с нарастающей задержкой (3, 6, 12, ... максимум 60 сек),
-            // чтобы не нагружать сервер запросами каждые 3 секунды
-            let nextDelay = min(pow(2, Double(attempt)) * 3, 60)
-            DispatchQueue.main.asyncAfter(deadline: .now() + nextDelay) { [weak self] in
-                self?.uploadUnsentMessages(attempt: attempt + 1)
-            }
-//<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
-//=======
-            isUploadingUnsent = false
+            isRetryingUnsentMessages = false
             if !unsentMessages.isEmpty {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
                     self?.uploadUnsentMessages()
                 }
             }
-//>>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
         }
     }
     
@@ -1144,18 +1110,13 @@ extension IQChannelsManager {
         
         let newMessages = serverMessages
             .filter { indexOfMessage(messageID: $0.messageID) == nil }
-//<<<<<<< IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
             .filter { !mergedMessageIDs.contains($0.messageID) }
         
         if !newMessages.isEmpty || didMergePending {
-            var messages = updatedMessages
-//=======
-//        if !newMessages.isEmpty {
-//>>>>>>> IQChannelsSwift/Managers/IQChannelsManager+Extensions.swift
             DispatchQueue.main.async {
                 self.detailViewModel?.enableAnimMessages = true
             }
-            self.messages = Self.mergeMessages(self.messages, with: newMessages)
+            self.messages = Self.mergeMessages(updatedMessages, with: newMessages)
         }
         listenToEvents()
     }
@@ -1260,8 +1221,28 @@ extension IQChannelsManager {
             await prefetchVisibleImages(in: results)
             
             DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
-            
-            messages = results
+
+            let pendingMessages = messages.filter { $0.messageID == 0 }
+            var updatedMessages = results
+            var didMergePending = false
+
+            for pending in pendingMessages {
+                if results.contains(where: { $0.localID != nil && $0.localID == pending.localID && $0.messageID != 0 }) {
+                    didMergePending = true
+                } else {
+                    updatedMessages.append(pending)
+                }
+            }
+            if didMergePending {
+                unsentMessages.removeAll { pending in
+                    results.contains { $0.localID != nil && $0.localID == pending.localID && $0.messageID != 0 }
+                }
+            }
+            let hasNewMessages = results.contains { indexOfMessage(messageID: $0.messageID) == nil }
+            if didMergePending || hasNewMessages || !pendingMessages.isEmpty {
+                updatedMessages.sort(by: { $0.createdDate < $1.createdDate })
+                messages = updatedMessages
+            }
             
             Task { [weak self] in
                 guard let self,
@@ -1333,10 +1314,13 @@ extension IQChannelsManager {
             }
             
             let results = (result.result?.0 ?? []).filter { $0.hasValidPayload }
-            
+
             DispatchQueue.main.async {
                 self.detailViewModel?.enableAnimMessages = false
-                self.messages = results
+            }
+            let newMessages = results.filter { indexOfMessage(messageID: $0.messageID) == nil }
+            if !newMessages.isEmpty {
+                self.messages = Self.mergeMessages(self.messages, with: newMessages)
             }
         }
     }
@@ -1593,18 +1577,17 @@ extension IQChannelsManager {
         }
     }
     
-    func auth(_ loginType: IQLoginType, _ completion: (() -> Void)?) {
+    func auth(_ loginType: IQLoginType, _ completion: ((Bool) -> Void)?) {
         self.loginType = loginType
         guard authResults.isEmpty else {
-            completion?()
+            completion?(true)
             return
         }
         guard networkStatusManager.isReachable else {
-            completion?()
+            completion?(false)
             return
         }
-        
-        Task{
+        Task {
             authAttempt += 1
             if authAttempt == 1 {
                 state = .authenticating
@@ -1644,7 +1627,6 @@ extension IQChannelsManager {
             if let error = errors.compactMap({$0}).first{
                 IQLog.debug(message: "Error authentication \n error: \(error)")
                 self.auth(loginType, failedWith: error, nil)
-                completion?()
             } else {
                 IQLog.debug(message: "Success authentication \n results: \(results)")
                 self.auth(loginType, succeededWith: results, completion)
@@ -1652,10 +1634,12 @@ extension IQChannelsManager {
         }
     }
     
-    private func auth(_ type: IQLoginType, succeededWith results: [(channel: String, auth: IQClientAuth?)], _ completion: (() -> Void)?) {
-        guard results.allSatisfy({ $0.auth?.client != nil && $0.auth?.session != nil }) else {
+    private func auth(_ type: IQLoginType, succeededWith results: [(channel: String, auth: IQClientAuth?)], _ completion: ((Bool) -> Void)?) {
+        guard results.allSatisfy({
+            $0.auth?.client != nil && $0.auth?.session != nil
+        }) else {
             self.auth(type, failedWith: nil, nil)
-            completion?()
+            completion?(false)
             return
         }
         
@@ -1678,23 +1662,27 @@ extension IQChannelsManager {
         authAttempt = 0
         state = .authenticated
         activateAnalytics(results: results)
-        completion?()
+        completion?(true)
     }
     
-    private func auth(_ type: IQLoginType, failedWith error: Error?, _ completion: (() -> Void)?) {
+    private func auth(_ type: IQLoginType, failedWith error: Error?, _ completion: ((Bool) -> Void)?) {
         authResults = []
         state = networkStatusManager.isReachable ? .loggedOut : .awaitingNetwork
-        // The whole-app stub makes sense only when every configured channel is an info channel
-        // (e.g. a single-channel info app). With a mix of chat + info channels we keep retrying.
-        let isInfoChannelsOnly = !greetingSettingsByChannel.isEmpty && greetingSettingsByChannel.values.allSatisfy { $0.channelType == "info" }
-        if(isInfoChannelsOnly && isAnonim){
+
+        let isInfoChannelsOnly = !greetingSettingsByChannel.isEmpty &&
+            greetingSettingsByChannel.values.allSatisfy { $0.channelType == "info" }
+
+        if isInfoChannelsOnly && isAnonim {
             state = .infoChatStub
+            completion?(true)
         } else {
             if networkStatusManager.isReachable {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
                     let isAuthError = error?.iqIsAuthError ?? false
                     self?.auth(isAuthError ? .anonymous : type, completion)
                 }
+            } else {
+                completion?(false)
             }
         }
     }

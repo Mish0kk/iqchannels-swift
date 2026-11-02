@@ -535,7 +535,7 @@ final class AttributeTextManager {
         }
 
         let cached = CachedAttributeText(attributed: attributedString, links: linkRanges)
-        cache.setObject(cached, forKey: cacheKey(from: markdown, textColor: textColor, fontSize: fontSize, alingment: alingment, isBold: isBold, isItalic: isItalic), cost: attributedString.length)
+        cache.setObject(cached, forKey: key, cost: attributedString.length)
 
         return (
             attributedString,

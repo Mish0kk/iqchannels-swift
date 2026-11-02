@@ -108,7 +108,7 @@ struct TextMessageCellView: View {
         let wholeString = NSRange(location: 0, length: nsText.length)
         links = linkDetector.matches(in: text, options: [], range: wholeString)
         
-        _cachedText = State(initialValue: AttributeTextManager.shared.getStringSync(
+        _cachedText = State(initialValue: AttributeTextManager.shared.getString(
             from: message.text ?? "",
             textColor: textColor,
             fontSize: fontSize,

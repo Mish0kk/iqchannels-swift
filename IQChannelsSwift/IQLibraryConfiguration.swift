@@ -77,7 +77,7 @@ public class IQLibraryConfiguration: IQLibraryConfigurationProtocol {
         IQStyle.configure(json)
     }
     
-    public func login(_ loginType: IQLoginType, _ completion: (() -> Void)?) {
+    public func login(_ loginType: IQLoginType, _ completion: ((Bool) -> Void)?) {
         channelManager?.login(loginType, completion)
     }
     

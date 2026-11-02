@@ -12,7 +12,7 @@ protocol IQChannelsManagerProtocol {
     var isSingleChatExpected: Bool { get }
     func getChatSkeletonViewController() -> IQChatDetailViewController
     func configure(configuration: IQChannelsConfig)
-    func login(_ loginType: IQLoginType, _ completion: (() -> Void)?)
+    func login(_ loginType: IQLoginType, _ completion: ((Bool) -> Void)?)
     func logout()
     func setCustomHeaders(_ headers: [String: String])
     func setListViewModel(_ viewModel: IQChatListViewModel?)
