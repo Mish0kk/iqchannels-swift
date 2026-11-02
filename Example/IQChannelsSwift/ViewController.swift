@@ -79,6 +79,15 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         return field
     }()
     
+    private lazy var authLabel: UILabel = {
+        let label = UILabel()
+        label.textColor = .black
+        label.text = "Авторизация успешна: nil"
+        label.textAlignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
     private lazy var unreadLabel: UILabel = {
         let label = UILabel()
         label.textColor = .black
@@ -239,7 +248,7 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         buttons.spacing = 5
         
         let view = UIStackView(arrangedSubviews: [
-            serverField, emailField, channelsField, chatToOpenField, unreadLabel, advancedUnreadLabel, loginButton, anonButton, pmButton, preFilledMsgButton, styleButton, languageButton, changeStyle, buttons, clearCacheButton, typingBarRow
+            serverField, emailField, channelsField, chatToOpenField, authLabel, unreadLabel, advancedUnreadLabel, loginButton, anonButton, pmButton, preFilledMsgButton, styleButton, languageButton, changeStyle, buttons, clearCacheButton, typingBarRow
         ])
         view.spacing = 5
         view.axis = .vertical
@@ -301,7 +310,12 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         }
         channelsField.text = savedChannels ?? channelsField.text
 
-        configuration.login(.anonymous)
+        configuration.login(.anonymous) { success in
+            DispatchQueue.main.async {
+                self.authLabel.text = "Авторизация успешна: \(success)"
+            }
+        }
+        
         configuration.addUnread(listener: self)
         configuration.addLink(listener: self)
         
@@ -331,7 +345,11 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         guard textField === emailField else { return true }
         
-        configuration.login(.credentials(textField.text ?? ""))
+        configuration.login(.credentials(textField.text ?? "")) { success in
+            DispatchQueue.main.async {
+                self.authLabel.text = "Авторизация успешна: \(success)"
+            }
+        }
         showMessages()
         return true
     }
@@ -451,7 +469,11 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
             setServer(server: serverField.text)
         }
         
-        configuration.login(.credentials(emailField.text ?? ""))
+        configuration.login(.credentials(emailField.text ?? "")) { success in
+            DispatchQueue.main.async {
+                self.authLabel.text = "Авторизация успешна: \(success)"
+            }
+        }
         configuration.addAdvancedUnread(listener: self)
         showMessages()
     }
@@ -464,7 +486,11 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
             setServer(server: serverField.text)
         }
         
-        configuration.login(.anonymous)
+        configuration.login(.anonymous) { success in
+            DispatchQueue.main.async {
+                self.authLabel.text = "Авторизация успешна: \(success)"
+            }
+        }
         configuration.addAdvancedUnread(listener: self)
         showMessages()
     }
@@ -476,7 +502,11 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
             let channel = channelsField.text?.components(separatedBy: .whitespaces).first ?? "support"
             setServer(server: serverField.text, chatToOpen: (channel: channel, chatType: IQChatType.manager))
         }
-        configuration.login(.credentials(emailField.text ?? ""))
+        configuration.login(.credentials(emailField.text ?? "")) { success in
+            DispatchQueue.main.async {
+                self.authLabel.text = "Авторизация успешна: \(success)"
+            }
+        }
         showMessages()
     }
     
