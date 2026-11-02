@@ -1577,18 +1577,17 @@ extension IQChannelsManager {
         }
     }
     
-    func auth(_ loginType: IQLoginType, _ completion: (() -> Void)?) {
+    func auth(_ loginType: IQLoginType, _ completion: ((Bool) -> Void)?) {
         self.loginType = loginType
         guard authResults.isEmpty else {
-            completion?()
+            completion?(true)
             return
         }
         guard networkStatusManager.isReachable else {
-            completion?()
+            completion?(false)
             return
         }
-        
-        Task{
+        Task {
             authAttempt += 1
             if authAttempt == 1 {
                 state = .authenticating
@@ -1628,7 +1627,6 @@ extension IQChannelsManager {
             if let error = errors.compactMap({$0}).first{
                 IQLog.debug(message: "Error authentication \n error: \(error)")
                 self.auth(loginType, failedWith: error, nil)
-                completion?()
             } else {
                 IQLog.debug(message: "Success authentication \n results: \(results)")
                 self.auth(loginType, succeededWith: results, completion)
@@ -1636,10 +1634,12 @@ extension IQChannelsManager {
         }
     }
     
-    private func auth(_ type: IQLoginType, succeededWith results: [(channel: String, auth: IQClientAuth?)], _ completion: (() -> Void)?) {
-        guard results.allSatisfy({ $0.auth?.client != nil && $0.auth?.session != nil }) else {
+    private func auth(_ type: IQLoginType, succeededWith results: [(channel: String, auth: IQClientAuth?)], _ completion: ((Bool) -> Void)?) {
+        guard results.allSatisfy({
+            $0.auth?.client != nil && $0.auth?.session != nil
+        }) else {
             self.auth(type, failedWith: nil, nil)
-            completion?()
+            completion?(false)
             return
         }
         
@@ -1662,23 +1662,27 @@ extension IQChannelsManager {
         authAttempt = 0
         state = .authenticated
         activateAnalytics(results: results)
-        completion?()
+        completion?(true)
     }
     
-    private func auth(_ type: IQLoginType, failedWith error: Error?, _ completion: (() -> Void)?) {
+    private func auth(_ type: IQLoginType, failedWith error: Error?, _ completion: ((Bool) -> Void)?) {
         authResults = []
         state = networkStatusManager.isReachable ? .loggedOut : .awaitingNetwork
-        // The whole-app stub makes sense only when every configured channel is an info channel
-        // (e.g. a single-channel info app). With a mix of chat + info channels we keep retrying.
-        let isInfoChannelsOnly = !greetingSettingsByChannel.isEmpty && greetingSettingsByChannel.values.allSatisfy { $0.channelType == "info" }
-        if(isInfoChannelsOnly && isAnonim){
+
+        let isInfoChannelsOnly = !greetingSettingsByChannel.isEmpty &&
+            greetingSettingsByChannel.values.allSatisfy { $0.channelType == "info" }
+
+        if isInfoChannelsOnly && isAnonim {
             state = .infoChatStub
+            completion?(true)
         } else {
             if networkStatusManager.isReachable {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { [weak self] in
                     let isAuthError = error?.iqIsAuthError ?? false
                     self?.auth(isAuthError ? .anonymous : type, completion)
                 }
+            } else {
+                completion?(false)
             }
         }
     }

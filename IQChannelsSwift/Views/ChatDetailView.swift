@@ -34,6 +34,7 @@ struct ChatDetailView: View {
     }
     
     var showInfoChatStub: Bool {
+        guard !viewModel.isLoading else { return false }
         let isInfoChannel = viewModel.client?.chatTypes.contains(.info) ?? false
         if(viewModel.isAnonim && isInfoChannel && viewModel.greetingSettings?.channelType == "info"){
             return true

@@ -12,7 +12,8 @@ import SDWebImage
 
 var navigationControl: UINavigationController?
 
-class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadListenerProtocol, IQChannelsLinkListenerProtocol {
+class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadListenerProtocol, IQChannelsAdvancedUnreadListenerProtocol, IQChannelsLinkListenerProtocol {
+    
     var isPickingStyle = false
     
     var id: String {
@@ -21,6 +22,18 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
     func iqChannelsUnreadDidChange(_ unread: Int) {
         DispatchQueue.main.async {
             self.unreadLabel.text = "Непрочитанных сообщений: \(unread)"
+        }
+    }
+    
+    func iqChannelsAdvancedUnreadDidChange(_ unread: IQChannelsSwift.IQAdvancedUnread) {
+        DispatchQueue.main.async {
+            self.advancedUnreadLabel.text = "\(unread)"
+        }
+    }
+    
+    func iqChannelsAdvancedUnreadException(_ e: any Error) {
+        DispatchQueue.main.async {
+            self.advancedUnreadLabel.text = "\(e)"
         }
     }
     
@@ -66,11 +79,31 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         return field
     }()
     
+    private lazy var authLabel: UILabel = {
+        let label = UILabel()
+        label.textColor = .black
+        label.text = "Авторизация успешна: nil"
+        label.textAlignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
     private lazy var unreadLabel: UILabel = {
         let label = UILabel()
         label.textColor = .black
         label.text = "Непрочитанных сообщений: nil"
         label.textAlignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+    
+    private lazy var advancedUnreadLabel: UILabel = {
+        let label = UILabel()
+        label.textColor = .black
+        label.text = "Тут будут расширенные непрочитанные сообщения"
+        label.textAlignment = .center
+        label.numberOfLines = 0
+        label.lineBreakMode = .byWordWrapping
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
@@ -219,16 +252,15 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         buttons.spacing = 5
         
         let view = UIStackView(arrangedSubviews: [
-            serverField, emailField, channelsField, chatToOpenField, unreadLabel, loginButton, anonButton, pmButton, preFilledMsgButton, styleButton, languageButton, changeStyle, buttons, clearCacheButton, typingBarRow
+            serverField, emailField, channelsField, chatToOpenField, authLabel, unreadLabel, advancedUnreadLabel, loginButton, anonButton, pmButton, preFilledMsgButton, styleButton, languageButton, changeStyle, buttons, clearCacheButton, typingBarRow
         ])
         view.spacing = 5
-        view.distribution = .fillEqually
         view.axis = .vertical
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
     
-    var configuration: IQLibraryConfigurationProtocol = IQLibraryConfiguration()
+    var configuration: IQLibraryConfigurationProtocol!
     
     var selectedStyle: Data?
     var preFillMessages: IQPreFillMessages?
@@ -238,29 +270,56 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
         setDismissKeyboardOnTap()
-        view.backgroundColor = .white
         view.addSubview(scrollView)
+        view.backgroundColor = .white
         scrollView.addSubview(stackView)
-
+        
         NSLayoutConstraint.activate([
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            stackView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 16),
-            stackView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -16),
-            stackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 16),
-            stackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -16),
-            stackView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor, constant: -32),
-            loginButton.heightAnchor.constraint(equalToConstant: 48)
-        ])
+                scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+                scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+                stackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 16),
+                stackView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: 16),
+                stackView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -16),
+                stackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -16),
+
+                stackView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor, constant: -32),
+
+                loginButton.heightAnchor.constraint(equalToConstant: 48)
+            ])
+        
         
         emailField.delegate = self
+        serverField.delegate = self
+        channelsField.delegate = self
+        chatToOpenField.delegate = self
         
-        setServer(server: "https://iqchannels.isimplelab.com")
+        let cached = UserDefaults.standard
+        let savedServer = cached.string(forKey: "cached_server_field")
+        let savedEmail = cached.string(forKey: "cached_email_field")
+        let savedChannels = cached.string(forKey: "cached_channels_field")
+        let savedChatToOpen = cached.string(forKey: "cached_chat_to_open_field")
         
-        configuration.login(.anonymous)
+        setServer(server: savedServer ?? "https://iqchannels.isimplelab.com")
+        
+        if let savedEmail {
+            emailField.text = savedEmail
+        }
+        if let savedChatToOpen {
+            chatToOpenField.text = savedChatToOpen
+        }
+        channelsField.text = savedChannels ?? channelsField.text
+
+        configuration.login(.anonymous) { success in
+            DispatchQueue.main.async {
+                self.authLabel.text = "Авторизация успешна: \(success)"
+            }
+        }
+        
         configuration.addUnread(listener: self)
         configuration.addLink(listener: self)
         
@@ -268,8 +327,6 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
     }
 
     func setServer(server: String?, chatToOpen: IQChannelsConfig.ChatToOpen? = nil) {
-        // Сессия, сконфигурированная приложением: если передана — SDK использует её для запросов
-        // и не выполняет собственную проверку сертификатов (serverTrust проверяет делегат сессии)
         let urlSession: URLSession? = nil
         serverString = (server?.isEmpty ?? true) ? "" : (server ?? "")
         channelsArray = channelsField.text?.components(separatedBy: .whitespaces) ?? []
@@ -277,6 +334,7 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
                                       channels: channelsArray,
                                       chatToOpen: chatToOpen,
                                       styleJson: selectedStyle,
+                                      logging: true,
                                       preFillMessages: preFillMessages,
                                       showBottomTypingBar: showBottomTypingBar,
                                       useRussianTrustedRootCA: false,
@@ -291,9 +349,25 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         guard textField === emailField else { return true }
         
-        configuration.login(.credentials(textField.text ?? ""))
+        configuration.login(.credentials(textField.text ?? "")) { success in
+            DispatchQueue.main.async {
+                self.authLabel.text = "Авторизация успешна: \(success)"
+            }
+        }
         showMessages()
         return true
+    }
+    
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        saveFieldsToCache()
+    }
+    
+    private func saveFieldsToCache() {
+        let cached = UserDefaults.standard
+        cached.set(serverField.text ?? "", forKey: "cached_server_field")
+        cached.set(emailField.text ?? "", forKey: "cached_email_field")
+        cached.set(channelsField.text ?? "", forKey: "cached_channels_field")
+        cached.set(chatToOpenField.text ?? "", forKey: "cached_chat_to_open_field")
     }
     
     func showMessages(){
@@ -309,7 +383,11 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         picker.delegate = self
         present(picker, animated: true)
     }
-
+    
+    @objc private func typingBarSwitchChanged(_ sender: UISwitch) {
+        showBottomTypingBar = sender.isOn
+    }
+    
     @objc func clearCacheDidTap() {
         configuration.logout()
         
@@ -388,25 +466,36 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
     }
     
     @objc func loginDidTap() {
+        saveFieldsToCache()
         if let channel = chatToOpenField.text, !channel.isEmpty {
             setServer(server: serverField.text, chatToOpen: (channel: channel, chatType: IQChatType.chat))
         } else {
             setServer(server: serverField.text)
         }
         
-        configuration.login(.credentials(emailField.text ?? ""))
-        configuration.addUnread(listener: self)
+        configuration.login(.credentials(emailField.text ?? "")) { success in
+            DispatchQueue.main.async {
+                self.authLabel.text = "Авторизация успешна: \(success)"
+            }
+        }
+        configuration.addAdvancedUnread(listener: self)
         showMessages()
     }
     
     @objc func anonymousDidTap() {
+        saveFieldsToCache()
         if let channel = chatToOpenField.text, !channel.isEmpty {
             setServer(server: serverField.text, chatToOpen: (channel: channel, chatType: IQChatType.chat))
         } else {
             setServer(server: serverField.text)
         }
         
-        configuration.login(.anonymous)
+        configuration.login(.anonymous) { success in
+            DispatchQueue.main.async {
+                self.authLabel.text = "Авторизация успешна: \(success)"
+            }
+        }
+        configuration.addAdvancedUnread(listener: self)
         showMessages()
     }
     
@@ -414,10 +503,14 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         if let channel = chatToOpenField.text, !channel.isEmpty {
             setServer(server: serverField.text, chatToOpen: (channel: channel, chatType: IQChatType.manager))
         } else {
-            var channel = channelsField.text?.components(separatedBy: .whitespaces).first ?? "support"
+            let channel = channelsField.text?.components(separatedBy: .whitespaces).first ?? "support"
             setServer(server: serverField.text, chatToOpen: (channel: channel, chatType: IQChatType.manager))
         }
-        configuration.login(.credentials(emailField.text ?? ""))
+        configuration.login(.credentials(emailField.text ?? "")) { success in
+            DispatchQueue.main.async {
+                self.authLabel.text = "Авторизация успешна: \(success)"
+            }
+        }
         showMessages()
     }
     
