@@ -1192,15 +1192,20 @@ extension IQChannelsManager {
         Task {
             guard let networkManager = currentNetworkManager, let selectedChat else { return }
             
+            let chatChannel = selectedChat.auth.channel
+            let chatType = selectedChat.chatType
+
             messages = []
-            networkManager.stopListenToEvents()
-            
+            networkManagers.values.forEach { $0.stopListenToEvents() }
+
             let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
-            
+
             DispatchQueue.main.async { self.detailViewModel?.isLoading = true }
-            
+
 
             let result = await networkManager.loadMessages(request: .init(clientId: selectedChat.auth.auth.client?.id, chatType: selectedChat.chatType), getSettings: true, isInfoChat: isInfoChat, language: detailViewModel?.selectedLanguage?.code)
+
+            guard isCurrentChat(channel: chatChannel, chatType: chatType) else { return }
             
             if let error = result.error {
                 DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
@@ -1320,11 +1325,16 @@ extension IQChannelsManager {
                 retryUnreadCount(after: attempt)
                 return
             }
-            
+
+            let chatChannel = selectedChat.auth.channel
+            let chatType = selectedChat.chatType
             let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
-            
+
 
             let result = await networkManager.loadMessages(request: .init(clientId: selectedChat.auth.auth.client?.id, chatType: selectedChat.chatType), getSettings: true, isInfoChat: isInfoChat, language: detailViewModel?.selectedLanguage?.code)
+
+            guard isCurrentChat(channel: chatChannel, chatType: chatType) else { return }
+
             DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
             
             if result.error != nil {
@@ -1364,10 +1374,17 @@ extension IQChannelsManager {
                 query.maxID = message.messageID
                 break
             }
-            
+
+            let chatChannel = selectedChat.auth.channel
+            let chatType = selectedChat.chatType
             let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
-            
+
             let result = await networkManager.loadMessages(request: query, getSettings: false, isInfoChat: isInfoChat, language: detailViewModel?.selectedLanguage?.code)
+
+            guard isCurrentChat(channel: chatChannel, chatType: chatType) else {
+                isLoadingOldMessages = false
+                return
+            }
             isLoadingOldMessages = false
             
             if let error = result.error {

@@ -13,9 +13,24 @@ final class SseRecoveryTests: XCTestCase {
         var sendMessageResult: Error?
 
         private var loadMessagesResults: [ResponseCallback<([IQMessage], Bool, Int?, String, [IQLanguage]?, String?)>] = []
+        private var holdNext = false
+        private var heldLoadMessages: [CheckedContinuation<ResponseCallback<([IQMessage], Bool, Int?, String, [IQLanguage]?, String?)>, Never>] = []
 
         func enqueueLoadMessages(_ result: ResponseCallback<([IQMessage], Bool, Int?, String, [IQLanguage]?, String?)>) {
             loadMessagesResults.append(result)
+        }
+
+        func holdNextLoadMessages() {
+            holdNext = true
+        }
+
+        func resolveHeldLoadMessages(_ result: ResponseCallback<([IQMessage], Bool, Int?, String, [IQLanguage]?, String?)>) {
+            heldLoadMessages.forEach { $0.resume(returning: result) }
+            heldLoadMessages.removeAll()
+        }
+
+        func emit(_ events: [IQChatEvent]) {
+            subscriptions.last?.callback(events, nil)
         }
 
         func isConnectedToEvents() -> Bool { true }
@@ -46,6 +61,12 @@ final class SseRecoveryTests: XCTestCase {
         func getFile(id: String) async throws -> IQFile? { nil }
         func loadMessages(request: IQLoadMessageRequest, getSettings: Bool, isInfoChat: Bool, language: String?) async -> ResponseCallback<([IQMessage], Bool, Int?, String, [IQLanguage]?, String?)> {
             loadMessagesRequests.append(request)
+            if holdNext {
+                holdNext = false
+                return await withCheckedContinuation { continuation in
+                    heldLoadMessages.append(continuation)
+                }
+            }
             return loadMessagesResults.isEmpty
                 ? .init(result: ([], false, nil, "", nil, nil))
                 : loadMessagesResults.removeFirst()
@@ -106,6 +127,7 @@ final class SseRecoveryTests: XCTestCase {
     }
 
     private func dropConnection(mock: NetworkMock) {
+        guard !mock.subscriptions.isEmpty else { return }
         mock.subscriptions[0].callback(nil, NSError(domain: "test.sse", code: 1))
     }
 
@@ -185,6 +207,112 @@ final class SseRecoveryTests: XCTestCase {
         wait(for: [settled], timeout: 2)
 
         XCTAssertEqual(mock.loadMessagesRequests.count, 1, "первый open не должен дублировать загрузку истории")
+    }
+
+    private func makeMultiChatManager(channelA: NetworkMock, channelB: NetworkMock) -> IQChannelsManager {
+        let config = IQChannelsConfig(address: "http://127.0.0.1:1", channels: ["a", "b"])
+        let manager = IQChannelsManager(configuration: config)
+        manager.networkManagers["a"] = channelA
+        manager.networkManagers["b"] = channelB
+        manager.authResults = [
+            (channel: "a", auth: IQClientAuth(client: IQClient(), session: nil, analytics: nil)),
+            (channel: "b", auth: IQClientAuth(client: IQClient(), session: nil, analytics: nil))
+        ]
+        return manager
+    }
+
+    private func select(_ manager: IQChannelsManager, channel: String) {
+        let auth = manager.authResults.first { $0.channel == channel }!
+        manager.selectedChat = (auth, .chat)
+    }
+
+    private func settle(_ seconds: TimeInterval = 0.5) {
+        let settled = expectation(description: "settled")
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { settled.fulfill() }
+        wait(for: [settled], timeout: seconds + 2)
+    }
+
+    func testStaleChatResponseDoesNotOverwriteCurrentChat() {
+        let mockA = NetworkMock()
+        let mockB = NetworkMock()
+        let manager = makeMultiChatManager(channelA: mockA, channelB: mockB)
+        settle(0.5)
+
+        mockA.holdNextLoadMessages()
+        mockB.holdNextLoadMessages()
+
+        select(manager, channel: "a")
+        waitUntil({ mockA.loadMessagesRequests.count == 1 }, "A requested")
+
+        select(manager, channel: "b")
+        waitUntil({ mockB.loadMessagesRequests.count == 1 }, "B requested")
+
+        mockB.resolveHeldLoadMessages(.init(result: ([historyMessage(id: 50)], false, nil, "", nil, nil)))
+        waitUntil({ manager.messages.contains { $0.messageID == 50 } }, "B history shown")
+
+        mockA.resolveHeldLoadMessages(.init(result: ([historyMessage(id: 41)], false, nil, "", nil, nil)))
+        settle()
+
+        XCTAssertEqual(
+            manager.messages.map(\.messageID),
+            [50],
+            "поздний ответ старого чата не должен перезаписывать текущий"
+        )
+    }
+
+    func testOldChannelEventDoesNotLeakIntoNewChat() {
+        let mockA = NetworkMock()
+        let mockB = NetworkMock()
+        let manager = makeMultiChatManager(channelA: mockA, channelB: mockB)
+        settle(0.5)
+
+        mockA.enqueueLoadMessages(.init(result: ([], false, nil, "", nil, nil)))
+        mockB.enqueueLoadMessages(.init(result: ([historyMessage(id: 50)], false, nil, "", nil, nil)))
+
+        select(manager, channel: "a")
+        waitUntil({ mockA.listenRequests.count == 1 }, "A subscribed")
+
+        select(manager, channel: "b")
+        waitUntil({
+            mockB.listenRequests.count == 1 && manager.messages.contains { $0.messageID == 50 }
+        }, "B shown and subscribed")
+
+        mockA.emit([IQChatEvent(id: 1, type: .messageCreated, message: operatorMessage(id: 41))])
+        settle()
+
+        XCTAssertFalse(
+            manager.messages.contains { $0.messageID == 41 },
+            "события SSE старого канала не должны попадать в новый чат"
+        )
+    }
+
+    func testRefreshInFlightForOldChatDoesNotWriteAfterSwitch() {
+        let mockA = NetworkMock()
+        let mockB = NetworkMock()
+        let manager = makeMultiChatManager(channelA: mockA, channelB: mockB)
+        settle(0.5)
+
+        mockA.enqueueLoadMessages(.init(result: ([], false, nil, "", nil, nil)))
+        mockB.enqueueLoadMessages(.init(result: ([historyMessage(id: 60)], false, nil, "", nil, nil)))
+
+        select(manager, channel: "a")
+        waitUntil({ mockA.listenRequests.count == 1 }, "A subscribed")
+
+        dropConnection(mock: mockA)
+        waitUntil({ mockA.listenRequests.count == 2 }, timeout: 8, "A reconnected")
+
+        mockA.holdNextLoadMessages()
+        mockA.subscriptions.last?.onOpen()
+        waitUntil({ mockA.loadMessagesRequests.count == 2 }, "A refresh in flight")
+
+        select(manager, channel: "b")
+        waitUntil({ manager.messages.contains { $0.messageID == 60 } }, "B shown")
+
+        mockA.resolveHeldLoadMessages(.init(result: ([operatorMessage(id: 41)], false, nil, "", nil, nil)))
+        settle()
+
+        XCTAssertFalse(manager.messages.contains { $0.messageID == 41 })
+        XCTAssertTrue(manager.messages.contains { $0.messageID == 60 })
     }
 }
 
