@@ -313,10 +313,12 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
         
         if(unreadMessagesCount > 0){
             if let lastMessage = value.last, !(lastMessage.isMy ?? false) {
-                value.insert(
-                    IQMessage(newMsgHeader: true),
-                    at: value.count - unreadMessagesCount
-                )
+                var newMsgHeader = IQMessage(newMsgHeader: true)
+                let insertIndex = value.count - unreadMessagesCount
+                if let firstUnreadCreatedAt = value[insertIndex].createdAt {
+                    newMsgHeader.createdAt = firstUnreadCreatedAt - 1
+                }
+                value.insert(newMsgHeader, at: insertIndex)
             }
         }
         Task {

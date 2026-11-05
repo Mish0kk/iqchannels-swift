@@ -433,5 +433,29 @@ final class SseRecoveryTests: XCTestCase {
             "merge не должен затирать живые SSE-сообщения"
         )
     }
+
+    func testNewMessagesHeaderStaysBeforeFirstUnreadAfterMergeSort() {
+        var read = historyMessage(id: 10)
+        read.createdAt = 1_000
+        read.isRead = true
+
+        var unread = operatorMessage(id: 11)
+        unread.createdAt = 2_000
+        unread.isRead = false
+
+        var header = IQMessage(newMsgHeader: true)
+        header.createdAt = (unread.createdAt ?? 0) - 1
+
+        var newer = operatorMessage(id: 50)
+        newer.createdAt = 5_000
+
+        let merged = IQChannelsManager.mergeMessages([read, header, unread], with: [newer])
+
+        let headerIndex = merged.firstIndex { $0.newMsgHeader == true }
+        let unreadIndex = merged.firstIndex { $0.messageID == 11 }
+        XCTAssertNotNil(headerIndex)
+        XCTAssertNotNil(unreadIndex)
+        XCTAssertEqual(headerIndex, unreadIndex! - 1, "плашка должна стоять перед первым непрочитанным после сортировки")
+    }
 }
 
