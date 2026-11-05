@@ -1457,6 +1457,16 @@ extension IQChannelsManager {
             DispatchQueue.main.async {
                 self.detailViewModel?.scrollDotHidden = false
             }
+            if var unread = IQChannelsManager.advancedUnread,
+               let chat = selectedChat,
+               let index = unread.channels?.firstIndex(where: { $0.name == chat.auth.channel && $0.chatType == chat.chatType.rawValue }) {
+                unread.channels?[index].lastMessage = LastMessage(text: message.text, fileID: message.file?.id, isSurvey: false, date: LastMessage.serverDateString(from: Date()))
+                Task { @MainActor in
+                    IQChannelsManager.advancedUnread = unread
+                    self.listViewModel?.advancedUnread = unread.channels ?? []
+                    IQChannelsManager.advancedUnreadListeners.forEach { $0.iqChannelsAdvancedUnreadDidChange(unread) }
+                }
+            }
         }
     }
     

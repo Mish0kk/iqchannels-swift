@@ -434,6 +434,26 @@ final class SseRecoveryTests: XCTestCase {
         )
     }
 
+    func testLiveOperatorMessageUpdatesChatListPreviewWhileChatOpen() {
+        IQChannelsManager.advancedUnread = IQAdvancedUnread(channels: [
+            Channel(name: "support", chatType: IQChatType.chat.rawValue, lastMessage: LastMessage(text: "старое", fileID: nil, isSurvey: nil, date: nil), unreadCount: 0)
+        ])
+        defer { IQChannelsManager.advancedUnread = nil }
+
+        let mock = NetworkMock()
+        _ = makeManager(mock: mock)
+        mock.enqueueLoadMessages(.init(result: ([], false, nil, "", nil, nil)))
+
+        XCTAssertTrue(waitUntil({ mock.listenRequests.count == 1 }, "initial subscription"))
+
+        mock.emit([IQChatEvent(id: 1, type: .messageCreated, message: operatorMessage(id: 50))])
+
+        XCTAssertTrue(
+            waitUntil({ IQChannelsManager.advancedUnread?.channels?.first?.lastMessage?.text == "operator 50" }),
+            "превью списка чатов должно обновиться последним сообщением оператора при открытом чате"
+        )
+    }
+
     func testNewMessagesHeaderStaysBeforeFirstUnreadAfterMergeSort() {
         var read = historyMessage(id: 10)
         read.createdAt = 1_000
