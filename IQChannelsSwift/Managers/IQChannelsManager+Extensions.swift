@@ -1101,35 +1101,36 @@ extension IQChannelsManager {
 
         let result = await networkManager.loadMessages(request: .init(chatType: chatType), getSettings: false, isInfoChat: isInfoChat, language: detailViewModel?.selectedLanguage?.code).result
 
-        guard isCurrentChat(channel: channel, chatType: chatType) else { return }
-
         let serverMessages = (result?.0 ?? []).filter { $0.hasValidPayload }
 
-        var mergedMessageIDs = Set<Int>()
-        var updatedMessages = self.messages
-        var didMergePending = false
+        await MainActor.run { [weak self] in
+            guard let self,
+                  self.isCurrentChat(channel: channel, chatType: chatType) else { return }
 
-        for (index, item) in updatedMessages.enumerated() {
-            var localMessage = item
-            guard localMessage.messageID == 0,
-                  localMessage.isMy ?? false,
-                  let localID = localMessage.localID,
-                  let serverCopy = serverMessages.first(where: { $0.localID == localID && $0.messageID != 0 }) else { continue }
+            var mergedMessageIDs = Set<Int>()
+            var updatedMessages = self.messages
+            var didMergePending = false
 
-            var merged = localMessage.merged(with: serverCopy)
-            merged.error = false
-            updatedMessages[index] = merged
-            mergedMessageIDs.insert(serverCopy.messageID)
-            didMergePending = true
-            unsentMessages.removeAll { $0.localID == localID }
-        }
+            for (index, item) in updatedMessages.enumerated() {
+                var localMessage = item
+                guard localMessage.messageID == 0,
+                      localMessage.isMy ?? false,
+                      let localID = localMessage.localID,
+                      let serverCopy = serverMessages.first(where: { $0.localID == localID && $0.messageID != 0 }) else { continue }
 
-        let newMessages = serverMessages
-            .filter { indexOfMessage(messageID: $0.messageID) == nil }
-            .filter { !mergedMessageIDs.contains($0.messageID) }
+                var merged = localMessage.merged(with: serverCopy)
+                merged.error = false
+                updatedMessages[index] = merged
+                mergedMessageIDs.insert(serverCopy.messageID)
+                didMergePending = true
+                self.unsentMessages.removeAll { $0.localID == localID }
+            }
 
-        if !newMessages.isEmpty || didMergePending {
-            DispatchQueue.main.async {
+            let newMessages = serverMessages
+                .filter { self.indexOfMessage(messageID: $0.messageID) == nil }
+                .filter { !mergedMessageIDs.contains($0.messageID) }
+
+            if !newMessages.isEmpty || didMergePending {
                 self.detailViewModel?.enableAnimMessages = true
                 self.messages = Self.mergeMessages(updatedMessages, with: newMessages)
             }
@@ -1243,7 +1244,9 @@ extension IQChannelsManager {
             }
             
             await prefetchVisibleImages(in: results)
-            
+
+            guard isCurrentChat(channel: chatChannel, chatType: chatType) else { return }
+
             DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
 
             let pendingMessages = messages.filter { $0.messageID == 0 }
@@ -1400,6 +1403,9 @@ extension IQChannelsManager {
             let newMessages = result.result?.0.filter { indexOfMessage(messageID: $0.messageID) == nil && $0.hasValidPayload } ?? []
             
             await sendUnsendMessages()
+
+            guard isCurrentChat(channel: chatChannel, chatType: chatType) else { return }
+
             DispatchQueue.main.async {
                 self.detailViewModel?.enableAnimMessages = true
             }
@@ -1807,7 +1813,7 @@ extension IQChannelsManager: IQNetworkStatusManagerDelegate {
 //                currentNetworkManager?.stopListenToUnread()
                 return
             }
-            
+
             networkManagers.values.forEach { $0.resetSessionIfNeeded() }
 
             if !authResults.isEmpty {

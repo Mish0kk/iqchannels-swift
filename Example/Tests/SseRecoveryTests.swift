@@ -29,6 +29,18 @@ final class SseRecoveryTests: XCTestCase {
             heldLoadMessages.removeAll()
         }
 
+        private var holdSends = false
+        private var heldSends: [CheckedContinuation<Error?, Never>] = []
+
+        func holdNextSendMessage() {
+            holdSends = true
+        }
+
+        func resolveHeldSends(_ error: Error?) {
+            heldSends.forEach { $0.resume(returning: error) }
+            heldSends.removeAll()
+        }
+
         func emit(_ events: [IQChatEvent]) {
             subscriptions.last?.callback(events, nil)
         }
@@ -78,6 +90,11 @@ final class SseRecoveryTests: XCTestCase {
         func uploadFile(file: DataFile, taskIdentifierCallback: TaskIdentifierCallback?) async -> ResponseCallback<IQFile> { .init() }
         func sendMessage(form: IQMessageForm) async -> Error? {
             sentForms.append(form)
+            if holdSends {
+                return await withCheckedContinuation { continuation in
+                    heldSends.append(continuation)
+                }
+            }
             return sendMessageResult
         }
         func acceptProduct(form: IQProductForm) async -> Error? { nil }
@@ -104,7 +121,7 @@ final class SseRecoveryTests: XCTestCase {
         _ condition: @escaping () -> Bool,
         timeout: TimeInterval = 6,
         _ message: String = "condition"
-    ) {
+    ) -> Bool {
         let exp = expectation(description: message)
         func tick() {
             if condition() { exp.fulfill(); return }
@@ -112,6 +129,7 @@ final class SseRecoveryTests: XCTestCase {
         }
         tick()
         wait(for: [exp], timeout: timeout)
+        return condition()
     }
 
     private func historyMessage(id: Int) -> IQMessage {
@@ -128,7 +146,7 @@ final class SseRecoveryTests: XCTestCase {
 
     private func dropConnection(mock: NetworkMock) {
         guard !mock.subscriptions.isEmpty else { return }
-        mock.subscriptions[0].callback(nil, NSError(domain: "test.sse", code: 1))
+        mock.subscriptions.first?.callback(nil, NSError(domain: "test.sse", code: 1))
     }
 
     func testReconnectOpenMergesMissedOperatorMessage() {
@@ -137,13 +155,13 @@ final class SseRecoveryTests: XCTestCase {
         mock.enqueueLoadMessages(.init(result: ([historyMessage(id: 41)], false, nil, "", nil, nil)))
         mock.enqueueLoadMessages(.init(result: ([historyMessage(id: 41), operatorMessage(id: 50)], false, nil, "", nil, nil)))
 
-        waitUntil({ mock.listenRequests.count == 1 }, "initial subscription")
+        XCTAssertTrue(waitUntil({ mock.listenRequests.count == 1 }, "initial subscription"))
 
         dropConnection(mock: mock)
-        waitUntil({ mock.listenRequests.count == 2 }, timeout: 8, "reconnect subscription")
+        XCTAssertTrue(waitUntil({ mock.listenRequests.count == 2 }, timeout: 8, "reconnect subscription"))
         mock.subscriptions.last?.onOpen()
 
-        waitUntil({ manager.messages.contains { $0.messageID == 50 } }, timeout: 5, "missed message merged")
+        XCTAssertTrue(waitUntil({ manager.messages.contains { $0.messageID == 50 } }, timeout: 5, "missed message merged"))
         XCTAssertEqual(mock.listenRequests.count, 2, "merge не должен рестартить SSE-подписку")
         XCTAssertEqual(mock.loadMessagesRequests.count, 2)
     }
@@ -153,25 +171,29 @@ final class SseRecoveryTests: XCTestCase {
         let manager = makeManager(mock: mock)
         mock.enqueueLoadMessages(.init(result: ([], false, nil, "", nil, nil)))
 
-        waitUntil({ mock.listenRequests.count == 1 }, "initial subscription")
+        XCTAssertTrue(waitUntil({ mock.listenRequests.count == 1 }, "initial subscription"))
 
         manager.sendMessage("привет", files: nil, replyToMessage: nil)
-        waitUntil({ manager.messages.contains { $0.messageID == 0 && $0.localID != nil } }, "pending row appended")
+        XCTAssertTrue(waitUntil({ manager.messages.contains { $0.messageID == 0 && $0.localID != nil } }, "pending row appended"))
         let localID = manager.messages.first { $0.messageID == 0 }?.localID
+        guard let localID else {
+            XCTFail("pending row has no localID")
+            return
+        }
 
-        var echo = IQMessage(text: "привет", chatType: .chat, clientID: 11, localID: localID!, replyMessageID: nil)
+        var echo = IQMessage(text: "привет", chatType: .chat, clientID: 11, localID: localID, replyMessageID: nil)
         echo.messageID = 42
         mock.enqueueLoadMessages(.init(result: ([echo], false, nil, "", nil, nil)))
 
         dropConnection(mock: mock)
-        waitUntil({ mock.listenRequests.count == 2 }, timeout: 8, "reconnect subscription")
+        XCTAssertTrue(waitUntil({ mock.listenRequests.count == 2 }, timeout: 8, "reconnect subscription"))
         mock.subscriptions.last?.onOpen()
 
-        waitUntil(
+        XCTAssertTrue(waitUntil(
             { manager.messages.first { $0.localID == localID }?.messageID == 42 },
             timeout: 5,
             "pending confirmed by merge"
-        )
+        ))
         XCTAssertFalse(manager.messages.first { $0.localID == localID }?.error ?? true)
     }
 
@@ -180,13 +202,13 @@ final class SseRecoveryTests: XCTestCase {
         let manager = makeManager(mock: mock)
         mock.enqueueLoadMessages(.init(result: ([historyMessage(id: 41)], false, nil, "", nil, nil)))
 
-        waitUntil({ mock.listenRequests.count == 1 }, "initial subscription")
+        XCTAssertTrue(waitUntil({ mock.listenRequests.count == 1 }, "initial subscription"))
 
-        mock.subscriptions[0].callback(
+        mock.subscriptions.first?.callback(
             [IQChatEvent(id: 1, type: .messageCreated, message: operatorMessage(id: 41))],
             nil
         )
-        mock.subscriptions[0].callback(
+        mock.subscriptions.first?.callback(
             [IQChatEvent(id: 2, type: .messageCreated, message: operatorMessage(id: 41))],
             nil
         )
@@ -199,8 +221,8 @@ final class SseRecoveryTests: XCTestCase {
         _ = makeManager(mock: mock)
         mock.enqueueLoadMessages(.init(result: ([historyMessage(id: 41)], false, nil, "", nil, nil)))
 
-        waitUntil({ mock.listenRequests.count == 1 }, "initial subscription")
-        mock.subscriptions[0].onOpen()
+        XCTAssertTrue(waitUntil({ mock.listenRequests.count == 1 }, "initial subscription"))
+        mock.subscriptions.last?.onOpen()
 
         let settled = expectation(description: "settled")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { settled.fulfill() }
@@ -242,13 +264,13 @@ final class SseRecoveryTests: XCTestCase {
         mockB.holdNextLoadMessages()
 
         select(manager, channel: "a")
-        waitUntil({ mockA.loadMessagesRequests.count == 1 }, "A requested")
+        XCTAssertTrue(waitUntil({ mockA.loadMessagesRequests.count == 1 }, "A requested"))
 
         select(manager, channel: "b")
-        waitUntil({ mockB.loadMessagesRequests.count == 1 }, "B requested")
+        XCTAssertTrue(waitUntil({ mockB.loadMessagesRequests.count == 1 }, "B requested"))
 
         mockB.resolveHeldLoadMessages(.init(result: ([historyMessage(id: 50)], false, nil, "", nil, nil)))
-        waitUntil({ manager.messages.contains { $0.messageID == 50 } }, "B history shown")
+        XCTAssertTrue(waitUntil({ manager.messages.contains { $0.messageID == 50 } }, "B history shown"))
 
         mockA.resolveHeldLoadMessages(.init(result: ([historyMessage(id: 41)], false, nil, "", nil, nil)))
         settle()
@@ -270,12 +292,12 @@ final class SseRecoveryTests: XCTestCase {
         mockB.enqueueLoadMessages(.init(result: ([historyMessage(id: 50)], false, nil, "", nil, nil)))
 
         select(manager, channel: "a")
-        waitUntil({ mockA.listenRequests.count == 1 }, "A subscribed")
+        XCTAssertTrue(waitUntil({ mockA.listenRequests.count == 1 }, "A subscribed"))
 
         select(manager, channel: "b")
-        waitUntil({
+        XCTAssertTrue(waitUntil({
             mockB.listenRequests.count == 1 && manager.messages.contains { $0.messageID == 50 }
-        }, "B shown and subscribed")
+        }, "B shown and subscribed"))
 
         mockA.emit([IQChatEvent(id: 1, type: .messageCreated, message: operatorMessage(id: 41))])
         settle()
@@ -296,23 +318,120 @@ final class SseRecoveryTests: XCTestCase {
         mockB.enqueueLoadMessages(.init(result: ([historyMessage(id: 60)], false, nil, "", nil, nil)))
 
         select(manager, channel: "a")
-        waitUntil({ mockA.listenRequests.count == 1 }, "A subscribed")
+        XCTAssertTrue(waitUntil({ mockA.listenRequests.count == 1 }, "A subscribed"))
 
         dropConnection(mock: mockA)
-        waitUntil({ mockA.listenRequests.count == 2 }, timeout: 8, "A reconnected")
+        XCTAssertTrue(waitUntil({ mockA.listenRequests.count == 2 }, timeout: 8, "A reconnected"))
 
         mockA.holdNextLoadMessages()
         mockA.subscriptions.last?.onOpen()
-        waitUntil({ mockA.loadMessagesRequests.count == 2 }, "A refresh in flight")
+        XCTAssertTrue(waitUntil({ mockA.loadMessagesRequests.count == 2 }, "A refresh in flight"))
 
         select(manager, channel: "b")
-        waitUntil({ manager.messages.contains { $0.messageID == 60 } }, "B shown")
+        XCTAssertTrue(waitUntil({ manager.messages.contains { $0.messageID == 60 } }, "B shown"))
 
         mockA.resolveHeldLoadMessages(.init(result: ([operatorMessage(id: 41)], false, nil, "", nil, nil)))
         settle()
 
         XCTAssertFalse(manager.messages.contains { $0.messageID == 41 })
         XCTAssertTrue(manager.messages.contains { $0.messageID == 60 })
+    }
+
+    func testChatSwitchDuringHistoryPrefetchDoesNotOverwriteCurrentChat() {
+        let mockA = NetworkMock()
+        let mockB = NetworkMock()
+        let manager = makeMultiChatManager(channelA: mockA, channelB: mockB)
+        settle(0.5)
+
+        var imageMessage = historyMessage(id: 41)
+        var file = IQFile(dataFile: .init(data: Data([1]), filename: "photo.image.jpeg"))
+        file.id = "file-41"
+        file.url = URL(string: "http://10.255.255.1/f.png")
+        file.imagePreviewUrl = URL(string: "http://10.255.255.1/preview.png")
+        imageMessage.file = file
+
+        mockA.enqueueLoadMessages(.init(result: ([imageMessage], false, nil, "", nil, nil)))
+        mockB.enqueueLoadMessages(.init(result: ([historyMessage(id: 50)], false, nil, "", nil, nil)))
+
+        mockA.holdNextLoadMessages()
+        select(manager, channel: "a")
+        XCTAssertTrue(waitUntil({ mockA.loadMessagesRequests.count == 1 }, "A requested"))
+        mockA.resolveHeldLoadMessages(.init(result: ([imageMessage], false, nil, "", nil, nil)))
+        settle(0.3)
+
+        select(manager, channel: "b")
+        XCTAssertTrue(waitUntil({ manager.messages.contains { $0.messageID == 50 } }, "B shown"))
+
+        settle(4.0)
+
+        XCTAssertEqual(
+            manager.messages.map(\.messageID),
+            [50],
+            "prefetch старого чата не должен перезаписывать текущий"
+        )
+    }
+
+    func testChatSwitchDuringUnsentFlushDoesNotInsertOldChatMessages() {
+        let mockA = NetworkMock()
+        let mockB = NetworkMock()
+        let manager = makeMultiChatManager(channelA: mockA, channelB: mockB)
+        settle(0.5)
+
+        IQDatabaseManager.shared.getAllMessages()
+            .filter { $0.messageID == 0 && $0.author == "\"client\"" }
+            .forEach { IQDatabaseManager.shared.deleteMessageByLocalId($0.localID ?? 0) }
+
+        var pending = IQMessage(text: "pending", chatType: .chat, clientID: 0, localID: 910_001, replyMessageID: nil)
+        pending.createdAt = 1
+        IQDatabaseManager.shared.insertMessage(pending.toDatabaseMessage())
+        defer { IQDatabaseManager.shared.deleteMessageByLocalId(910_001) }
+
+        mockA.enqueueLoadMessages(.init(result: ([], false, nil, "", nil, nil)))
+        mockA.enqueueLoadMessages(.init(result: ([historyMessage(id: 41)], false, nil, "", nil, nil)))
+        mockB.enqueueLoadMessages(.init(result: ([historyMessage(id: 50)], false, nil, "", nil, nil)))
+
+        select(manager, channel: "a")
+        XCTAssertTrue(waitUntil({ mockA.listenRequests.count == 1 }, "A subscribed"))
+
+        mockA.holdNextSendMessage()
+        manager.loadOldMessages()
+        XCTAssertTrue(waitUntil({ mockA.loadMessagesRequests.count == 2 }, "old page requested"))
+        settle(0.3)
+
+        select(manager, channel: "b")
+        XCTAssertTrue(waitUntil({ manager.messages.contains { $0.messageID == 50 } }, "B shown"))
+
+        mockA.resolveHeldSends(nil)
+        settle()
+
+        XCTAssertEqual(manager.messages.first?.messageID, 50, "старые сообщения не должны вставляться в новый чат")
+        XCTAssertFalse(manager.messages.contains { $0.messageID == 41 })
+    }
+
+    func testLiveSseMessageDuringMergeRequestSurvivesMerge() {
+        let mock = NetworkMock()
+        let manager = makeManager(mock: mock)
+        mock.enqueueLoadMessages(.init(result: ([historyMessage(id: 41)], false, nil, "", nil, nil)))
+
+        XCTAssertTrue(waitUntil({ mock.listenRequests.count == 1 }, "initial subscription"))
+
+        dropConnection(mock: mock)
+        XCTAssertTrue(waitUntil({ mock.listenRequests.count == 2 }, timeout: 8, "reconnected"))
+
+        mock.holdNextLoadMessages()
+        mock.subscriptions.last?.onOpen()
+        XCTAssertTrue(waitUntil({ mock.loadMessagesRequests.count == 2 }, "merge in flight"))
+
+        mock.emit([IQChatEvent(id: 3, type: .messageCreated, message: operatorMessage(id: 77))])
+        XCTAssertTrue(waitUntil({ manager.messages.contains { $0.messageID == 77 } }, "live message shown"))
+
+        mock.resolveHeldLoadMessages(.init(result: ([historyMessage(id: 41)], false, nil, "", nil, nil)))
+
+        settle()
+        XCTAssertTrue(
+            manager.messages.contains { $0.messageID == 77 },
+            "merge не должен затирать живые SSE-сообщения"
+        )
     }
 }
 
