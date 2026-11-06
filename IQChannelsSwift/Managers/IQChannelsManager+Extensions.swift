@@ -1618,6 +1618,11 @@ extension IQChannelsManager {
                     case let .credentials(credential):
                         IQLog.debug(message: "Authentication credentials \n loginType: \(loginType)")
                         response = await networkManager.clientsIntegrationAuth(credentials: credential)
+                    
+                        if let infoChatSettingsResult = await networkManager.getBlocker().result{
+                            infoChatSettingsByChannel[channel] = infoChatSettingsResult
+                        }
+                    
                         isAnonim = false
                 }
                 errors.append(response.error)
