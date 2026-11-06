@@ -15,6 +15,7 @@ class IQNetworkStatusManager {
     private var monitor = NWPathMonitor()
     private let queue = DispatchQueue.global(qos: .userInteractive)
     private var stuckPathWorkItem: DispatchWorkItem?
+    private var receivedInitialPath = false
     
     var isReachable: Bool {
         status != .notReachable
@@ -38,14 +39,16 @@ class IQNetworkStatusManager {
     
     private func attachHandler() {
         monitor.pathUpdateHandler = { [weak self] path in
+            guard let self else { return }
             let status: IQNetworkStatus = path.status == .satisfied ? .reachable : .notReachable
-            if self?.status != status {
-                self?.status = status
-                    self?.delegate?.networkStatusChanged(status)
-            } else {
-                self?.status = status
+            let isInitialPath = !self.receivedInitialPath
+            self.receivedInitialPath = true
+            let previousStatus = self.status
+            self.status = status
+            if !isInitialPath, previousStatus != status {
+                self.delegate?.networkStatusChanged(status)
             }
-            self?.scheduleStuckPathRecheck()
+            self.scheduleStuckPathRecheck()
         }
     }
     

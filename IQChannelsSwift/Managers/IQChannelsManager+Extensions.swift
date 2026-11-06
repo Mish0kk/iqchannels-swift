@@ -304,7 +304,7 @@ extension IQChannelsManager {
         IQListenEventsRequest(chatType: chatType)
     }
 
-    private func listenToEvents(){
+    private func listenToEvents(refreshOnOpen: Bool = false){
         guard !authResults.isEmpty, let selectedChat else { return }
 
         guard networkStatusManager.isReachable else {
@@ -319,13 +319,16 @@ extension IQChannelsManager {
         currentNetworkManager?.listenToEvents(request: query, onOpen: { [weak self] in
             self?.sendAttachmentsIfNeeded()
             self?.uploadUnsentMessages()
+            if refreshOnOpen {
+                Task { await self?.fetchAndMergeMessages() }
+            }
         }) { [weak self] events, error in
             guard let self else { return }
-            
+
             if error != nil {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
                     self?.currentNetworkManager?.stopListenToEvents()
-                    self?.listenToEvents()
+                    self?.listenToEvents(refreshOnOpen: true)
                 }
             } else {
                 applyEvents(events ?? [])
@@ -338,23 +341,26 @@ extension IQChannelsManager {
     }
     
     private func applyEvents(_ events: [IQChatEvent]) {
-        for event in events {
-            switch event.type {
-            case .typing:
-                messageTyping(event)
-            case .messageCreated:
-                messageCreated(event)
-            case .messageRead:
-                messageRead(event)
-            case .deleteMessages:
-                messagesRemoved(event)
-            case .fileStatusUpdated:
-                fileStatusUpdated(event)
-            case .ratingIgnored:
-                ratingIgnored(event)
-            case .chatSubtitleChanged:
-                chatSubtitleChanged(event)
-            default: break
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            for event in events {
+                switch event.type {
+                case .typing:
+                    messageTyping(event)
+                case .messageCreated:
+                    messageCreated(event)
+                case .messageRead:
+                    messageRead(event)
+                case .deleteMessages:
+                    messagesRemoved(event)
+                case .fileStatusUpdated:
+                    fileStatusUpdated(event)
+                case .ratingIgnored:
+                    ratingIgnored(event)
+                case .chatSubtitleChanged:
+                    chatSubtitleChanged(event)
+                default: break
+                }
             }
         }
     }
@@ -1080,45 +1086,59 @@ extension IQChannelsManager {
     }
 
     private func loadMessagesAndMerge() async {
-        guard let networkManager = currentNetworkManager, let selectedChat else { return }
-        
-        let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
-        
-        networkManager.stopListenToEvents()
-
-        let result = await networkManager.loadMessages(request: .init(chatType: selectedChat.chatType), getSettings: false, isInfoChat: isInfoChat, language: detailViewModel?.selectedLanguage?.code).result
-        let serverMessages = (result?.0 ?? []).filter { $0.hasValidPayload }
-        
-        var mergedMessageIDs = Set<Int>()
-        var updatedMessages = self.messages
-        var didMergePending = false
-        
-        for (index, item) in updatedMessages.enumerated() {
-            var localMessage = item
-            guard localMessage.messageID == 0,
-                  localMessage.isMy ?? false,
-                  let localID = localMessage.localID,
-                  let serverCopy = serverMessages.first(where: { $0.localID == localID && $0.messageID != 0 }) else { continue }
-            
-            var merged = localMessage.merged(with: serverCopy)
-            merged.error = false
-            updatedMessages[index] = merged
-            mergedMessageIDs.insert(serverCopy.messageID)
-            didMergePending = true
-            unsentMessages.removeAll { $0.localID == localID }
-        }
-        
-        let newMessages = serverMessages
-            .filter { indexOfMessage(messageID: $0.messageID) == nil }
-            .filter { !mergedMessageIDs.contains($0.messageID) }
-        
-        if !newMessages.isEmpty || didMergePending {
-            DispatchQueue.main.async {
-                self.detailViewModel?.enableAnimMessages = true
-            }
-            self.messages = Self.mergeMessages(updatedMessages, with: newMessages)
-        }
+        currentNetworkManager?.stopListenToEvents()
+        await fetchAndMergeMessages()
         listenToEvents()
+    }
+
+    private func fetchAndMergeMessages() async {
+        guard let networkManager = currentNetworkManager,
+              let chat = selectedChat else { return }
+
+        let channel = chat.auth.channel
+        let chatType = chat.chatType
+        let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
+
+        let result = await networkManager.loadMessages(request: .init(chatType: chatType), getSettings: false, isInfoChat: isInfoChat, language: detailViewModel?.selectedLanguage?.code).result
+
+        let serverMessages = (result?.0 ?? []).filter { $0.hasValidPayload }
+
+        await MainActor.run { [weak self] in
+            guard let self,
+                  self.isCurrentChat(channel: channel, chatType: chatType) else { return }
+
+            var mergedMessageIDs = Set<Int>()
+            var updatedMessages = self.messages
+            var didMergePending = false
+
+            for (index, item) in updatedMessages.enumerated() {
+                var localMessage = item
+                guard localMessage.messageID == 0,
+                      localMessage.isMy ?? false,
+                      let localID = localMessage.localID,
+                      let serverCopy = serverMessages.first(where: { $0.localID == localID && $0.messageID != 0 }) else { continue }
+
+                var merged = localMessage.merged(with: serverCopy)
+                merged.error = false
+                updatedMessages[index] = merged
+                mergedMessageIDs.insert(serverCopy.messageID)
+                didMergePending = true
+                self.unsentMessages.removeAll { $0.localID == localID }
+            }
+
+            let newMessages = serverMessages
+                .filter { self.indexOfMessage(messageID: $0.messageID) == nil }
+                .filter { !mergedMessageIDs.contains($0.messageID) }
+
+            if !newMessages.isEmpty || didMergePending {
+                self.detailViewModel?.enableAnimMessages = true
+                self.messages = Self.mergeMessages(updatedMessages, with: newMessages)
+            }
+        }
+    }
+
+    private func isCurrentChat(channel: String, chatType: IQChatType) -> Bool {
+        selectedChat?.auth.channel == channel && selectedChat?.chatType == chatType
     }
     
     private func prefetchVisibleImages(in messages: [IQMessage]) async {
@@ -1173,15 +1193,20 @@ extension IQChannelsManager {
         Task {
             guard let networkManager = currentNetworkManager, let selectedChat else { return }
             
+            let chatChannel = selectedChat.auth.channel
+            let chatType = selectedChat.chatType
+
             messages = []
-            networkManager.stopListenToEvents()
-            
+            networkManagers.values.forEach { $0.stopListenToEvents() }
+
             let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
-            
+
             DispatchQueue.main.async { self.detailViewModel?.isLoading = true }
-            
+
 
             let result = await networkManager.loadMessages(request: .init(clientId: selectedChat.auth.auth.client?.id, chatType: selectedChat.chatType), getSettings: true, isInfoChat: isInfoChat, language: detailViewModel?.selectedLanguage?.code)
+
+            guard isCurrentChat(channel: chatChannel, chatType: chatType) else { return }
             
             if let error = result.error {
                 DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
@@ -1219,7 +1244,9 @@ extension IQChannelsManager {
             }
             
             await prefetchVisibleImages(in: results)
-            
+
+            guard isCurrentChat(channel: chatChannel, chatType: chatType) else { return }
+
             DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
 
             let pendingMessages = messages.filter { $0.messageID == 0 }
@@ -1301,11 +1328,16 @@ extension IQChannelsManager {
                 retryUnreadCount(after: attempt)
                 return
             }
-            
+
+            let chatChannel = selectedChat.auth.channel
+            let chatType = selectedChat.chatType
             let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
-            
+
 
             let result = await networkManager.loadMessages(request: .init(clientId: selectedChat.auth.auth.client?.id, chatType: selectedChat.chatType), getSettings: true, isInfoChat: isInfoChat, language: detailViewModel?.selectedLanguage?.code)
+
+            guard isCurrentChat(channel: chatChannel, chatType: chatType) else { return }
+
             DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
             
             if result.error != nil {
@@ -1345,10 +1377,17 @@ extension IQChannelsManager {
                 query.maxID = message.messageID
                 break
             }
-            
+
+            let chatChannel = selectedChat.auth.channel
+            let chatType = selectedChat.chatType
             let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
-            
+
             let result = await networkManager.loadMessages(request: query, getSettings: false, isInfoChat: isInfoChat, language: detailViewModel?.selectedLanguage?.code)
+
+            guard isCurrentChat(channel: chatChannel, chatType: chatType) else {
+                isLoadingOldMessages = false
+                return
+            }
             isLoadingOldMessages = false
             
             if let error = result.error {
@@ -1364,6 +1403,9 @@ extension IQChannelsManager {
             let newMessages = result.result?.0.filter { indexOfMessage(messageID: $0.messageID) == nil && $0.hasValidPayload } ?? []
             
             await sendUnsendMessages()
+
+            guard isCurrentChat(channel: chatChannel, chatType: chatType) else { return }
+
             DispatchQueue.main.async {
                 self.detailViewModel?.enableAnimMessages = true
             }
@@ -1414,6 +1456,16 @@ extension IQChannelsManager {
             markAsReceived([message.messageID])
             DispatchQueue.main.async {
                 self.detailViewModel?.scrollDotHidden = false
+            }
+            if var unread = IQChannelsManager.advancedUnread,
+               let chat = selectedChat,
+               let index = unread.channels?.firstIndex(where: { $0.name == chat.auth.channel && $0.chatType == chat.chatType.rawValue }) {
+                unread.channels?[index].lastMessage = LastMessage(text: message.text, fileID: message.file?.id, isSurvey: false, date: LastMessage.serverDateString(from: Date()))
+                Task { @MainActor in
+                    IQChannelsManager.advancedUnread = unread
+                    self.listViewModel?.advancedUnread = unread.channels ?? []
+                    IQChannelsManager.advancedUnreadListeners.forEach { $0.iqChannelsAdvancedUnreadDidChange(unread) }
+                }
             }
         }
     }
@@ -1776,7 +1828,7 @@ extension IQChannelsManager: IQNetworkStatusManagerDelegate {
 //                currentNetworkManager?.stopListenToUnread()
                 return
             }
-            
+
             networkManagers.values.forEach { $0.resetSessionIfNeeded() }
 
             if !authResults.isEmpty {
