@@ -209,8 +209,6 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
         }
         guard let result = response.result, let value = result.value?.languages else { return .init(error: NSError.failedToParseModel(IQLanguageResponse.self)) }
         
-        print("getAvailableLanguages: \(value)")
-        
         IQLog.debug(message: "getAvailableLanguages: \(value)")
         
         return .init(result: value)

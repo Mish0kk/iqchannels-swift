@@ -15,6 +15,8 @@ public protocol IQLibraryConfigurationProtocol {
     func getChatViewController() -> UIViewController?
     /// Configures the library with the provided configuration settings.
     func configure(_ config: IQChannelsConfig)
+    /// Reloads chat messages and settings for the currently selected chat.
+    func reloadMessages()
     /// Sets custom HTTP headers for network requests.
     func setCustomHeaders(_ headers: [String: String])
     /// Logs in the user with the specified login type.

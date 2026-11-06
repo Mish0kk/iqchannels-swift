@@ -109,6 +109,10 @@ public class IQLibraryConfiguration: IQLibraryConfigurationProtocol {
     public func removeAdvancedUnread(listener: any IQChannelsAdvancedUnreadListenerProtocol) {
         channelManager?.removeAdvancedUnread(listener: listener)
     }
+
+    public func reloadMessages() {
+        channelManager?.loadMessages(showLoading: false)
+    }
     
     public func addLink(listener: any IQChannelsLinkListenerProtocol) {
         channelManager?.addLink(listener: listener)

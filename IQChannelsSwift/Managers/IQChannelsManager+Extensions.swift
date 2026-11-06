@@ -147,6 +147,16 @@ extension IQChannelsManager {
         viewModel.isAnonim = isAnonim
         viewModel.greetingSettings = chat.flatMap { greetingSettingsByChannel[$0.auth.channel] }
         viewModel.infoChatSettings = chat.flatMap { infoChatSettingsByChannel[$0.auth.channel] }
+        
+        if let channel = chat?.auth.channel,
+           let cached = chatSettingsCache[channel] {
+            viewModel.chatLabel = cached.label
+            viewModel.chatSubtitle = cached.subtitle
+            viewModel.chatSettingsLoaded = true
+            if let cachedLanguages = availableLanguagesByChannel[channel] {
+                viewModel.availableLanguages = cachedLanguages
+            }
+        }
     }
     
     func getChatItems(from results: [AuthResult], config: IQChannelsConfig) -> [IQChatItemModel] {
@@ -1189,19 +1199,23 @@ extension IQChannelsManager {
         return urls
     }
     
-    private func loadMessages() {
+    func loadMessagesInternal(showLoading: Bool = true) {
         Task {
             guard let networkManager = currentNetworkManager, let selectedChat else { return }
             
             let chatChannel = selectedChat.auth.channel
             let chatType = selectedChat.chatType
 
-            messages = []
+            if showLoading {
+                messages = []
+            }
             networkManagers.values.forEach { $0.stopListenToEvents() }
 
             let isInfoChat = detailViewModel?.client?.chatTypes.contains(.info) ?? false
 
-            DispatchQueue.main.async { self.detailViewModel?.isLoading = true }
+            if showLoading {
+                DispatchQueue.main.async { self.detailViewModel?.isLoading = true }
+            }
 
 
             let result = await networkManager.loadMessages(request: .init(clientId: selectedChat.auth.auth.client?.id, chatType: selectedChat.chatType), getSettings: true, isInfoChat: isInfoChat, language: detailViewModel?.selectedLanguage?.code)
@@ -1232,6 +1246,7 @@ extension IQChannelsManager {
             DispatchQueue.main.async {
                 if let chatLabel = chatLabel {
                     self.detailViewModel?.chatLabel = chatLabel
+                    self.chatSettingsCache[chatChannel] = (label: chatLabel, subtitle: chatSubtitle)
                 }
                 self.detailViewModel?.chatSettingsLoaded = true
                 self.detailViewModel?.chatSubtitle = chatSubtitle
@@ -1249,7 +1264,7 @@ extension IQChannelsManager {
 
             DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
 
-            let pendingMessages = messages.filter { $0.messageID == 0 }
+            let pendingMessages = messages.filter { $0.messageID == 0 && ($0.isMy ?? false) }
             var updatedMessages = results
             var didMergePending = false
 
@@ -1266,9 +1281,14 @@ extension IQChannelsManager {
                 }
             }
             let hasNewMessages = results.contains { indexOfMessage(messageID: $0.messageID) == nil }
-            if didMergePending || hasNewMessages || !pendingMessages.isEmpty {
+            let hasRemovedMessages = messages.filter { $0.messageID != 0 }.contains { message in
+                !results.contains { $0.messageID == message.messageID }
+            }
+            if didMergePending || hasNewMessages || hasRemovedMessages || !pendingMessages.isEmpty {
                 updatedMessages.sort(by: { $0.createdDate < $1.createdDate })
-                messages = updatedMessages
+                if showLoading{
+                    messages = updatedMessages
+                }
             }
             
             Task { [weak self] in
@@ -1276,6 +1296,7 @@ extension IQChannelsManager {
                       let networkManager = self.currentNetworkManager else { return }
                 let languagesResponse = await networkManager.getAvailableLanguages()
                 if let languages = languagesResponse.result {
+                    self.availableLanguagesByChannel[chatChannel] = languages
                     await MainActor.run {
                         self.detailViewModel?.availableLanguages = languages
                     }
