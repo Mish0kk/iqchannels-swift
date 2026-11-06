@@ -225,9 +225,9 @@ struct IQMessage: Codable, Identifiable, Equatable {
         self.user = IQUser(id: 0, displayName: operatorName, avatarID: avatarID, avatarURL: avatarURL)
     }
     
-    init(newMsgHeader: Bool) {
+    init(newMsgHeader: Bool, createdAt: Int? = nil) {
         self.author = .system
-        self.createdAt = Int(Date().timeIntervalSince1970 * 1000)
+        self.createdAt = createdAt ?? Int(Date().timeIntervalSince1970 * 1000)
         self.localID = 0
         self.payload = .text
         self.isRead = true

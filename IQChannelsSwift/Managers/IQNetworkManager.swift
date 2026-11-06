@@ -313,9 +313,11 @@ class IQNetworkManager: NSObject, IQNetworkManagerProtocol {
         
         if(unreadMessagesCount > 0){
             if let lastMessage = value.last, !(lastMessage.isMy ?? false) {
+                let insertIndex = value.count - unreadMessagesCount
+                let headerCreatedAt = unreadMessages.first?.createdAt
                 value.insert(
-                    IQMessage(newMsgHeader: true),
-                    at: value.count - unreadMessagesCount
+                    IQMessage(newMsgHeader: true, createdAt: headerCreatedAt),
+                    at: insertIndex
                 )
             }
         }

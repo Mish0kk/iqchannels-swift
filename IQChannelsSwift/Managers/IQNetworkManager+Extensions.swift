@@ -127,7 +127,13 @@ extension IQNetworkManager: URLSessionDelegate {
    }
     
     func post<T: Decodable>(request: URLRequest, taskIdentifierCallback: TaskIdentifierCallback? = nil, responseType: T.Type) async -> ResponseCallback<IQResult<T>> {
-        await withCheckedContinuation { continuation in
+        let metricPath = request.url?.path ?? "unknown"
+        let startTime = CFAbsoluteTimeGetCurrent()
+        defer {
+            let elapsedMs = Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000)
+            IQLog.debug(message: "METRIC \(metricPath) \(elapsedMs)ms")
+        }
+        return await withCheckedContinuation { continuation in
             let task = session.dataTask(with: request) { data, response, taskError in
                 let turtle = self.handleResponse(url: request.url, data: data, response: response, error: taskError, responseType: responseType)
                 if let taskError {
