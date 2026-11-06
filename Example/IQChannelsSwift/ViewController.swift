@@ -214,7 +214,11 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
     }()
     
     private var showBottomTypingBar = true
-    
+
+    @objc private func typingBarSwitchChanged(_ sender: UISwitch) {
+        showBottomTypingBar = sender.isOn
+    }
+
     private lazy var typingBarSwitch: UISwitch = {
         let sw = UISwitch()
         sw.isOn = showBottomTypingBar
@@ -379,11 +383,7 @@ class ViewController: UIViewController, UITextFieldDelegate, IQChannelsUnreadLis
         picker.delegate = self
         present(picker, animated: true)
     }
-    
-    @objc private func typingBarSwitchChanged(_ sender: UISwitch) {
-        showBottomTypingBar = sender.isOn
-    }
-    
+
     @objc func clearCacheDidTap() {
         configuration.logout()
         
