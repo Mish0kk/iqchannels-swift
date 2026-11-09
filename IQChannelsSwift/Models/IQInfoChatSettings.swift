@@ -8,7 +8,7 @@
 import Foundation
 import SwiftUI
 
-struct IQInfoChatSettings: Decodable {
+struct IQInfoChatSettings: Decodable, Equatable {
     let blockerText: String?
     let blockerIcon: URL?
 }

@@ -336,15 +336,15 @@ class IQChatDetailViewController: IQViewController {
                 if(!(availableLanguages?.isEmpty ?? true)){
                     self?.navigationItem.rightBarButtonItem = self?.languageBarButton
                 }
-                
-                if self?.viewModel.selectedLanguage == nil {
-                    self?.viewModel.selectedLanguage = availableLanguages?.filter {$0.isDefault == true}.first ?? IQLanguage(code: "ru", name: "Русский", isDefault: true, iconURL: nil)
-                    
-                    if let newLabel = self?.viewModel.selectedLanguage?.name {
-                        self?.languageButton.setTitle(newLabel, for: .normal)
-                    }
+            }
+            .store(in: &cancellables)
+        
+        viewModel.$selectedLanguage
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] selectedLanguage in
+                if let name = selectedLanguage?.name {
+                    self?.languageButton.setTitle(name, for: .normal)
                 }
-                
             }
             .store(in: &cancellables)
     }

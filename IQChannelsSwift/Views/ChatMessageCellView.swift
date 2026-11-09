@@ -159,10 +159,9 @@ struct ChatMessageCellView: View {
             Color.paletteColorFromString(string: userDisplayName)
             
             if let avatarURL {
-                AnimatedImage(url: avatarURL)
+                WebImage(url: avatarURL)
                     .resizable()
-                    .indicator(SDWebImageActivityIndicator.gray)
-                    .transition(SDWebImageTransition.fade)
+                    .indicator(.activity)
                     .scaledToFill()
             } else {
                 let initials = userDisplayName.prefix(1)

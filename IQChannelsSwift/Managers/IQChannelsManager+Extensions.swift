@@ -157,6 +157,12 @@ extension IQChannelsManager {
                 viewModel.availableLanguages = cachedLanguages
             }
         }
+
+        if viewModel.selectedLanguage == nil {
+            let languages = chat.flatMap { availableLanguagesByChannel[$0.auth.channel] } ?? []
+            viewModel.selectedLanguage = languages.filter { $0.isDefault == true }.first
+                ?? IQLanguage(code: "ru", name: "Русский", isDefault: true, iconURL: nil)
+        }
     }
     
     func getChatItems(from results: [AuthResult], config: IQChannelsConfig) -> [IQChatItemModel] {
@@ -328,7 +334,6 @@ extension IQChannelsManager {
 
         currentNetworkManager?.listenToEvents(request: query, onOpen: { [weak self] in
             self?.sendAttachmentsIfNeeded()
-            self?.uploadUnsentMessages()
             if refreshOnOpen {
                 Task { await self?.fetchAndMergeMessages() }
             }
@@ -849,6 +854,7 @@ extension IQChannelsManager {
     }
     
     func cancelSendMessage(_ message: IQMessage) {
+        unsentMessages.removeAll { $0.id == message.id }
         if let messageIndex = indexOfMyMessage(localID: message.localID) {
             DispatchQueue.main.async {
                 self.detailViewModel?.enableAnimMessages = true
@@ -970,8 +976,10 @@ extension IQChannelsManager {
         
         readMessages.update(with: messageID)
         
-        if let index = messages.firstIndex(where: { $0.messageID == messageID }) {
-            messages[index] = messages[index].withRead(true)
+        DispatchQueue.main.async { [weak self] in
+            guard let self,
+                  let index = self.messages.firstIndex(where: { $0.messageID == messageID }) else { return }
+            self.messages[index] = self.messages[index].withRead(true)
         }
         
         IQLog.debug(message: "Read message with messageID = \(messageID)")
@@ -1026,7 +1034,8 @@ extension IQChannelsManager {
             }
             
             let networkManager = message.channel.flatMap { networkManagers[$0] } ?? currentNetworkManager
-            guard let networkManager else { return }
+            guard let networkManager,
+                  indexOfMyMessage(localID: message.localID) != nil else { return }
             
             let error = await networkManager.sendMessage(form: .init(message))
             
@@ -1054,33 +1063,6 @@ extension IQChannelsManager {
                 }
             } else {
                 unsentMessages.removeAll(where: { $0.id == message.id })
-            }
-        }
-    }
-    
-    private func uploadUnsentMessages(){
-        guard !isRetryingUnsentMessages, !unsentMessages.isEmpty else { return }
-
-        isRetryingUnsentMessages = true
-
-        let messages = unsentMessages
-            .sorted(by: { $0.createdDate < $1.createdDate })
-            .map { $0.withError(false) }
-        Task {
-            // Сообщения с ещё не загруженным файлом отправляем через загрузку,
-            // иначе файл терялся бы (уходило сообщение без fileId)
-            for message in messages {
-                if message.fileID == nil, message.file?.dataFile != nil {
-                    await uploadFileMessage(message)
-                } else {
-                    await sendMessage(message)
-                }
-            }
-            isRetryingUnsentMessages = false
-            if !unsentMessages.isEmpty {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
-                    self?.uploadUnsentMessages()
-                }
             }
         }
     }
@@ -1225,6 +1207,8 @@ extension IQChannelsManager {
             let result = await networkManager.loadMessages(request: .init(clientId: selectedChat.auth.auth.client?.id, chatType: selectedChat.chatType), getSettings: true, isInfoChat: isInfoChat, language: detailViewModel?.selectedLanguage?.code)
 
             guard isCurrentChat(channel: chatChannel, chatType: chatType) else { return }
+            
+            restoreUnsentMessagesFromDatabase()
             
             if let error = result.error {
                 DispatchQueue.main.async { self.detailViewModel?.isLoading = false }
@@ -1427,7 +1411,7 @@ extension IQChannelsManager {
             
             let newMessages = result.result?.0.filter { indexOfMessage(messageID: $0.messageID) == nil && $0.hasValidPayload } ?? []
             
-            await sendUnsendMessages()
+            restoreUnsentMessagesFromDatabase()
 
             guard isCurrentChat(channel: chatChannel, chatType: chatType) else { return }
 
@@ -1564,7 +1548,7 @@ extension IQChannelsManager {
         return tempLocalId
     }
     
-    private func sendUnsendMessages() async {
+    private func restoreUnsentMessagesFromDatabase() {
         let unsentMessagesFromLocalDatabase = IQDatabaseManager.shared.getAllMessages().filter {
             $0.messageID == 0
             && $0.author == "\"client\""
@@ -1578,13 +1562,8 @@ extension IQChannelsManager {
                     DispatchQueue.main.async {
                         self.detailViewModel?.enableAnimMessages = true
                     }
-                    let message = IQMessage(from: unsentMessage).withError(false)
+                    let message = IQMessage(from: unsentMessage)
                     messages.append(message)
-                    if(unsentMessage.file != nil){
-                        await uploadFileMessage(message)
-                    } else {
-                        await sendMessage(message)
-                    }
                 }
             }
         }
@@ -1865,9 +1844,6 @@ extension IQChannelsManager: IQNetworkStatusManagerDelegate {
                 state = .authenticated
                 Task { await self.analytics.flushCaches() }
                 await loadMessagesAndMerge()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-                    self?.uploadUnsentMessages()
-                }
             } else if let loginType, state != .authenticating {
                 authAttempt = 0
                 auth(loginType, nil)

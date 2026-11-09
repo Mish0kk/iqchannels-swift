@@ -16,11 +16,11 @@ class IQBaseViewModel: ObservableObject {
 
 extension Sequence where Element == IQBaseViewModel {
     func setState(_ state: IQChannelsState) {
-        forEach { $0.state = state }
+        forEach { if $0.state != state { $0.state = state } }
     }
     
     func setState(_ infoChatSettings: IQInfoChatSettings?) {
-        forEach { $0.infoChatSettings = infoChatSettings }
+        forEach { if $0.infoChatSettings != infoChatSettings { $0.infoChatSettings = infoChatSettings } }
     }
     
     func sendError(_ error: Error) {
