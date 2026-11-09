@@ -14,7 +14,7 @@ final class MessageRecoveryTests: XCTestCase {
     }
 
     func testMergedClearsErrorAndSetsServerIdentity() {
-        var local = IQMessage(text: "привет", chatType: .chat, clientID: 11, localID: 42, replyMessageID: nil)
+        var local = IQMessage(text: "привет", chatType: .chat, channel: nil, clientID: 11, localID: 42, replyMessageID: nil)
         local.error = true
         var server = local
         server.messageID = 1785
@@ -28,7 +28,7 @@ final class MessageRecoveryTests: XCTestCase {
     }
 
     func testWithErrorPreservesMessageIdForUnsentBookkeeping() {
-        var message = IQMessage(text: "x", chatType: .chat, clientID: 11, localID: 7, replyMessageID: nil)
+        var message = IQMessage(text: "x", chatType: .chat, channel: nil, clientID: 11, localID: 7, replyMessageID: nil)
         message.error = true
 
         let cleared = message.withError(false)
@@ -38,7 +38,7 @@ final class MessageRecoveryTests: XCTestCase {
     }
 
     func testMergeReplacesUnsentLocalMessageWithServerCopy() {
-        var local = IQMessage(text: "off1", chatType: .chat, clientID: 11, localID: 100, replyMessageID: nil)
+        var local = IQMessage(text: "off1", chatType: .chat, channel: nil, clientID: 11, localID: 100, replyMessageID: nil)
         local.error = true
         var server = local
         server.messageID = 1785
@@ -52,9 +52,9 @@ final class MessageRecoveryTests: XCTestCase {
     }
 
     func testMergeAppendsServerMessageWithoutLocalPair() {
-        let local = IQMessage(text: "hi", chatType: .chat, clientID: 11, localID: 100, replyMessageID: nil)
+        let local = IQMessage(text: "hi", chatType: .chat, channel: nil, clientID: 11, localID: 100, replyMessageID: nil)
         var server = IQMessage(
-            text: "ответ оператора", chatType: .chat, clientID: 11, localID: 101, replyMessageID: nil
+            text: "ответ оператора", chatType: .chat, channel: nil, clientID: 11, localID: 101, replyMessageID: nil
         )
         server.messageID = 1786
         server.author = .user
@@ -66,8 +66,8 @@ final class MessageRecoveryTests: XCTestCase {
     }
 
     func testMergeIgnoresServerMessageWithoutLocalID() {
-        let local = IQMessage(text: "hi", chatType: .chat, clientID: 11, localID: 100, replyMessageID: nil)
-        var server = IQMessage(text: "без localID", chatType: .chat, clientID: 11, localID: 101, replyMessageID: nil)
+        let local = IQMessage(text: "hi", chatType: .chat, channel: nil, clientID: 11, localID: 100, replyMessageID: nil)
+        var server = IQMessage(text: "без localID", chatType: .chat, channel: nil, clientID: 11, localID: 101, replyMessageID: nil)
         server.localID = nil
         server.messageID = 1787
         server.author = .user
@@ -79,11 +79,11 @@ final class MessageRecoveryTests: XCTestCase {
     }
 
     func testMergeKeepsMessagesSortedByCreatedDate() {
-        var old = IQMessage(text: "старое", chatType: .chat, clientID: 11, localID: 100, replyMessageID: nil)
+        var old = IQMessage(text: "старое", chatType: .chat, channel: nil, clientID: 11, localID: 100, replyMessageID: nil)
         old.createdAt = 1000
         old.messageID = 1700
         var local = IQMessage(
-            text: "новое неотправленное", chatType: .chat, clientID: 11, localID: 200, replyMessageID: nil
+            text: "новое неотправленное", chatType: .chat, channel: nil, clientID: 11, localID: 200, replyMessageID: nil
         )
         local.createdAt = 3000
         local.error = true

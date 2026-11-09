@@ -579,7 +579,7 @@ extension IQChannelsManager {
         
         switch action.action {
         case "Postback", "Say something":
-            let message = IQMessage(action: action, chatType: selectedChat.chatType, clientID: selectedChat.auth.auth.client?.id, localID: nextLocalId())
+            let message = IQMessage(action: action, chatType: selectedChat.chatType, channel: selectedChat.auth.channel, clientID: selectedChat.auth.auth.client?.id, localID: nextLocalId())
             DispatchQueue.main.async {
                 self.detailViewModel?.enableAnimMessages = true
             }
@@ -608,7 +608,7 @@ extension IQChannelsManager {
 //            IQDatabaseManager.shared.insertMessage(messages[index].toDatabaseMessage())
         }
         
-        let message = IQMessage(choice: choice, chatType: selectedChat.chatType, clientID: selectedChat.auth.auth.client?.id, localID: nextLocalId())
+        let message = IQMessage(choice: choice, chatType: selectedChat.chatType, channel: selectedChat.auth.channel, clientID: selectedChat.auth.auth.client?.id, localID: nextLocalId())
         DispatchQueue.main.async {
             self.detailViewModel?.enableAnimMessages = true
         }
@@ -678,7 +678,7 @@ extension IQChannelsManager {
                 if(hasNonValidatedFilesText != nil){
                     return nil
                 }
-                return IQMessage(dataFile: file, chatType: selectedChat.chatType, clientID: selectedChat.auth.auth.client?.id, localID: nextLocalId(), text: index == 0 ? text : nil, replyMessageID: index == 0 ? replyToMessage : nil)
+                return IQMessage(dataFile: file, chatType: selectedChat.chatType, channel: selectedChat.auth.channel, clientID: selectedChat.auth.auth.client?.id, localID: nextLocalId(), text: index == 0 ? text : nil, replyMessageID: index == 0 ? replyToMessage : nil)
             }
             
             if hasNonValidatedFilesText != nil {
@@ -703,7 +703,7 @@ extension IQChannelsManager {
             }
     
         } else {
-            let message = IQMessage(text: text, chatType: selectedChat.chatType, clientID: selectedChat.auth.auth.client?.id, localID: nextLocalId(), replyMessageID: replyToMessage)
+            let message = IQMessage(text: text, chatType: selectedChat.chatType, channel: selectedChat.auth.channel, clientID: selectedChat.auth.auth.client?.id, localID: nextLocalId(), replyMessageID: replyToMessage)
             DispatchQueue.main.async {
                 self.detailViewModel?.enableAnimMessages = true
             }
@@ -1005,8 +1005,11 @@ extension IQChannelsManager {
                 messages.removeAll { $0.newMsgHeader == true }
             }
             IQDatabaseManager.shared.insertMessage(message.toDatabaseMessage())
+            let belongsToCurrentChat = message.chatType == selectedChat?.chatType
+                && (message.channel == nil || message.channel == selectedChat?.auth.channel)
             if var unread = IQChannelsManager.advancedUnread,
                let chat = selectedChat,
+               belongsToCurrentChat,
                let index = unread.channels?.firstIndex(where: { $0.name == chat.auth.channel && $0.chatType == chat.chatType.rawValue }) {
                 
                 unread.channels?[index].lastMessage = LastMessage(text: message.text, fileID: message.file?.id, isSurvey: false, date: LastMessage.serverDateString(from: Date()))
@@ -1022,7 +1025,8 @@ extension IQChannelsManager {
                 self.detailViewModel?.idOfNewMessage = nil
             }
             
-            guard let networkManager = currentNetworkManager else { return }
+            let networkManager = message.channel.flatMap { networkManagers[$0] } ?? currentNetworkManager
+            guard let networkManager else { return }
             
             let error = await networkManager.sendMessage(form: .init(message))
             
@@ -1561,7 +1565,12 @@ extension IQChannelsManager {
     }
     
     private func sendUnsendMessages() async {
-        let unsentMessagesFromLocalDatabase = IQDatabaseManager.shared.getAllMessages().filter { $0.messageID == 0 && $0.author == "\"client\""}
+        let unsentMessagesFromLocalDatabase = IQDatabaseManager.shared.getAllMessages().filter {
+            $0.messageID == 0
+            && $0.author == "\"client\""
+            && $0.chatType == selectedChat?.chatType.rawValue
+            && ($0.channel == nil || $0.channel == selectedChat?.auth.channel)
+        }
         
         for unsentMessage in unsentMessagesFromLocalDatabase {
             if(selectedChat?.auth.auth.client?.id == unsentMessage.clientID){

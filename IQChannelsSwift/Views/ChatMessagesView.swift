@@ -139,6 +139,7 @@ struct ChatMessagesView: View {
                         }
                         .modifier(FlippedUpsideDown())
                         .background(offerVisibilityReader(message: message))
+                        .id("\(message.id)-\(message.messageID)")
                     }
                 }
                 .padding([.bottom, .horizontal], 16)

@@ -30,6 +30,7 @@ struct IQDatabaseMessage {
     let actions: String?
     let singleChoices: String?
     let chatType: String?
+    let channel: String?
     let eventID: Int?
     let client: String?
     let user: String?
@@ -71,6 +72,7 @@ extension IQMessage {
             actions: self.actions?.toJSONString(),
             singleChoices: self.singleChoices?.toJSONString(),
             chatType: self.chatType?.rawValue,
+            channel: self.channel,
             eventID: self.eventID,
             client: self.client?.toJSONString(),
             user: self.user?.toJSONString(),
@@ -121,6 +123,7 @@ extension IQMessage {
         self.actions = [IQAction].fromJSONString(databaseMessage.actions)
         self.singleChoices = [IQSingleChoice].fromJSONString(databaseMessage.singleChoices)
         self.chatType = IQChatType(rawValue: databaseMessage.chatType ?? "") ?? IQChatType.chat
+        self.channel = databaseMessage.channel
         self.eventID = databaseMessage.eventID
         self.client = IQClient.fromJSONString(databaseMessage.client)
         self.user = IQUser.fromJSONString(databaseMessage.user)

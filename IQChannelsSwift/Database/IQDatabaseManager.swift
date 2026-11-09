@@ -36,6 +36,7 @@ class IQDatabaseManager {
     private let actions = Expression<String?>("actions")
     private let singleChoices = Expression<String?>("singleChoices")
     private let chatType = Expression<String?>("chatType")
+    private let channel = Expression<String?>("channel")
     private let eventID = Expression<Int?>("eventId")
     private let client = Expression<String?>("client")
     private let user = Expression<String?>("user")
@@ -76,6 +77,7 @@ class IQDatabaseManager {
                 t.column(actions)
                 t.column(singleChoices)
                 t.column(chatType)
+                t.column(channel)
                 t.column(eventID)
                 t.column(client)
                 t.column(user)
@@ -129,6 +131,24 @@ class IQDatabaseManager {
         } catch {
             IQLog.error(message: "Error check columns: \(error)")
         }
+
+        do {
+            let checkColumnExists = try db.scalar("""
+               SELECT COUNT(*)
+               FROM pragma_table_info('messages')
+               WHERE name = 'channel'
+            """) as! Int64
+
+            if checkColumnExists == 0 {
+                do {
+                    try db.run(messages.addColumn(channel, defaultValue: nil))
+                } catch {
+                    IQLog.error(message: "Error add columns: \(error)")
+                }
+            }
+        } catch {
+            IQLog.error(message: "Error check columns: \(error)")
+        }
     }
     
     private func parseMessage(_ message: Row) -> IQDatabaseMessage {
@@ -154,6 +174,7 @@ class IQDatabaseManager {
             actions: message[actions],
             singleChoices: message[singleChoices],
             chatType: message[chatType],
+            channel: message[channel],
             eventID: message[eventID],
             client: message[client],
             user: message[user],
@@ -190,6 +211,7 @@ class IQDatabaseManager {
                    actions <- message.actions,
                    singleChoices <- message.singleChoices,
                    chatType <- message.chatType,
+                   channel <- message.channel,
                    eventID <- message.eventID,
                    client <- message.client,
                    user <- message.user,

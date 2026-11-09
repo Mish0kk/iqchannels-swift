@@ -74,10 +74,56 @@ final class UnsentRecoveryTests: XCTestCase {
     }
 
     private func makeStuckMessage(localID: Int, text: String) -> IQMessage {
-        var message = IQMessage(text: text, chatType: .chat, clientID: 11, localID: localID, replyMessageID: nil)
+        var message = IQMessage(text: text, chatType: .chat, channel: nil, clientID: 11, localID: localID, replyMessageID: nil)
         message.messageID = 0
         message.error = true
         return message
+    }
+
+    private func makeStuckMessage(localID: Int, text: String, chatType: IQChatType, channel: String) -> IQMessage {
+        var message = IQMessage(text: text, chatType: chatType, channel: channel, clientID: 11, localID: localID, replyMessageID: nil)
+        message.messageID = 0
+        message.error = true
+        return message
+    }
+
+    func testUnsentMessageFromOtherChatIsNotSentThroughCurrentChat() {
+        let regularMock = NetworkMock()
+        let pmMock = NetworkMock()
+        let config = IQChannelsConfig(address: "http://127.0.0.1:1", channels: ["regular", "pm"])
+        let manager = IQChannelsManager(configuration: config)
+        manager.networkManagers["regular"] = regularMock
+        manager.networkManagers["pm"] = pmMock
+        let auth = IQClientAuth(client: IQClient(), session: nil, analytics: nil)
+        manager.authResults = [
+            (channel: "regular", auth: auth),
+            (channel: "pm", auth: auth),
+        ]
+
+        waitForChatSelection()
+        manager.selectedChat = ((channel: "regular", auth: auth), .chat)
+
+        manager.unsentMessages = [
+            makeStuckMessage(localID: 301, text: "pm-failed", chatType: .manager, channel: "pm"),
+        ]
+
+        manager.networkStatusChanged(.reachable)
+
+        let flushed = expectation(description: "pm message flushed via own channel")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { flushed.fulfill() }
+        wait(for: [flushed], timeout: 5)
+
+        XCTAssertEqual(
+            pmMock.sentForms.map(\.localId),
+            [301],
+            "Упавшее pm-сообщение должно уйти через менеджер своего канала"
+        )
+        XCTAssertEqual(
+            regularMock.sentForms.count,
+            0,
+            "Неотправленное сообщение pm-чата не должно переотправляться через текущий обычный чат"
+        )
+        XCTAssertTrue(manager.unsentMessages.isEmpty)
     }
 
     func testNetworkRecoveryFlushesUnsentQueueInOrder() {

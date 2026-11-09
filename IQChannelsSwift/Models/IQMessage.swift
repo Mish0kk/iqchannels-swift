@@ -55,6 +55,7 @@ struct IQMessage: Codable, Identifiable, Equatable {
     /// ID for UI, dont use
     var id: String = UUID().uuidString
     var chatType: IQChatType?
+    var channel: String?
     var eventID: Int?
     var upload: String?
     var error: Bool = false
@@ -182,31 +183,31 @@ struct IQMessage: Codable, Identifiable, Equatable {
         self.isReply = false
         self.createdAt = Int(Date().timeIntervalSince1970 * 1000)
     }
-    init(text: String, chatType: IQChatType, clientID: Int?, localID: Int, replyMessageID: Int?) {
-        self.init(localID: localID, clientID: clientID, chatType: chatType, replyMessageID: replyMessageID)
+    init(text: String, chatType: IQChatType, channel: String?, clientID: Int?, localID: Int, replyMessageID: Int?) {
+        self.init(localID: localID, clientID: clientID, chatType: chatType, channel: channel, replyMessageID: replyMessageID)
         self.text = text
         self.isRead = false
         self.payload = .text
     }
     
-    init(dataFile: DataFile, chatType: IQChatType, clientID: Int?, localID: Int, text: String?, replyMessageID: Int?) {
-        self.init(localID: localID, clientID: clientID, chatType: chatType, replyMessageID: replyMessageID)
+    init(dataFile: DataFile, chatType: IQChatType, channel: String?, clientID: Int?, localID: Int, text: String?, replyMessageID: Int?) {
+        self.init(localID: localID, clientID: clientID, chatType: chatType, channel: channel, replyMessageID: replyMessageID)
         self.payload = .file
         self.text = text
         self.isRead = false
         self.file = IQFile(dataFile: dataFile)
     }
     
-    init(action: IQAction, chatType: IQChatType, clientID: Int?, localID: Int) {
-        self.init(localID: localID, clientID: clientID, chatType: chatType, replyMessageID: nil)
+    init(action: IQAction, chatType: IQChatType, channel: String?, clientID: Int?, localID: Int) {
+        self.init(localID: localID, clientID: clientID, chatType: chatType, channel: channel, replyMessageID: nil)
         self.payload = .text
         self.isRead = false
         self.text = action.title
         self.botpressPayload = action.payload
     }
     
-    init(choice: IQSingleChoice, chatType: IQChatType, clientID: Int?, localID: Int) {
-        self.init(localID: localID, clientID: clientID, chatType: chatType, replyMessageID: nil)
+    init(choice: IQSingleChoice, chatType: IQChatType, channel: String?, clientID: Int?, localID: Int) {
+        self.init(localID: localID, clientID: clientID, chatType: chatType, channel: channel, replyMessageID: nil)
         self.payload = .text
         self.isRead = false
         self.text = choice.title
@@ -235,7 +236,7 @@ struct IQMessage: Codable, Identifiable, Equatable {
         self.isSystem = true
     }
     
-    private init(localID: Int, clientID: Int?, chatType: IQChatType, replyMessageID: Int?) {
+    private init(localID: Int, clientID: Int?, chatType: IQChatType, channel: String?, replyMessageID: Int?) {
         self.author = .client
         self.isRead = true
         self.clientID = clientID
@@ -243,6 +244,7 @@ struct IQMessage: Codable, Identifiable, Equatable {
         self.createdAt = Int(Date().timeIntervalSince1970 * 1000)
         self.localID = localID
         self.chatType = chatType
+        self.channel = channel
     }
     
     //MARK: - Methods
